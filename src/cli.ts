@@ -21,6 +21,7 @@ import { renderProjectsList } from './format/human-projects-report.js'
 import { renderHumanReport, type Verbosity } from './format/human-report.js'
 import { parsePathExpression, PathParseError } from './merge-engine/path.js'
 import { builtinPresets } from './presets/registry.js'
+import { promptConfirmOverwrite, promptForInitChoice } from './prompts/init-prompts.js'
 import { getVersion } from './version.js'
 
 const program = new Command()
@@ -122,7 +123,7 @@ program
     '[tool]',
     'restrict to a single tool from the preset; omit to init every tool it defines',
   )
-  .requiredOption('--preset <name>', 'preset to initialize from')
+  .option('--preset <name>', 'preset to initialize from; prompts interactively if omitted')
   .option('--cwd <path>', 'project directory', process.cwd())
   .option('--force', 'overwrite an existing config file instead of skipping that tool', false)
   .option('--json', 'machine-readable output', false)
@@ -132,7 +133,7 @@ program
     async (
       tool: string | undefined,
       options: {
-        preset: string
+        preset?: string
         cwd: string
         force: boolean
         json: boolean
@@ -140,12 +141,43 @@ program
         verbose: boolean
       },
     ) => {
+      // Same "no TTY / --json always non-interactive" rule as sync's TUI (spec 4.5/12.2 stage 8).
+      const interactive =
+        !options.json && Boolean(process.stdin.isTTY) && Boolean(process.stdout.isTTY)
+
+      let presetName = options.preset
+      let tools = tool ? [tool] : undefined
+
+      if (!presetName) {
+        if (!interactive) {
+          console.log(
+            options.json
+              ? JSON.stringify({
+                  error: '--preset is required (no interactive terminal available)',
+                })
+              : 'Ошибка: --preset is required (no interactive terminal available)',
+          )
+          process.exitCode = 2
+          return
+        }
+        const choice = await promptForInitChoice()
+        if (!choice) {
+          process.exitCode = 1
+          return
+        }
+        presetName = choice.presetName
+        tools = choice.tools
+      }
+
       const report = await runInit({
         cwd: resolve(options.cwd),
-        presetName: options.preset,
+        presetName,
         force: options.force,
         presetRegistry: builtinPresets,
-        ...(tool ? { tool } : {}),
+        ...(tools ? { tools } : {}),
+        ...(interactive
+          ? { confirmOverwrite: (t: string, p: string) => promptConfirmOverwrite(t, p) }
+          : {}),
       })
 
       if (options.json) {

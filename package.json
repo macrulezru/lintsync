@@ -28,6 +28,7 @@
     "format:fix": "prettier --write ."
   },
   "dependencies": {
+    "@clack/prompts": "^1.8.1",
     "commander": "^13.1.0",
     "ink": "^7.1.1",
     "jsonc-parser": "^3.3.1",

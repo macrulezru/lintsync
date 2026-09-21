@@ -15,6 +15,14 @@ describe('builtinPresets', () => {
     expect(Object.keys(preset?.tools ?? {}).sort()).toEqual(['eslint', 'prettier'])
   })
 
+  it('registers base with all 3 tools and generic, mild rules', () => {
+    const preset = builtinPresets.getPreset('base')
+    expect(preset).toBeDefined()
+    expect(Object.keys(preset?.tools ?? {}).sort()).toEqual(['eslint', 'prettier', 'stylelint'])
+    // deliberately milder than npm-lib's opinionated no-console: 'error'
+    expect(preset?.tools.eslint?.rules).toMatchObject({ 'no-console': 'warn' })
+  })
+
   it('returns undefined for an unknown preset name', () => {
     expect(builtinPresets.getPreset('does-not-exist')).toBeUndefined()
   })

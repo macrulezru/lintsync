@@ -24,6 +24,12 @@ export interface RunInitOptions {
   presetName: string
   /** Restrict to a single tool from the preset (spec 4.1: `init [tool] --preset=<name>`). */
   tool?: string
+  /**
+   * Restrict to a subset of tools from the preset — the interactive checkbox flow's equivalent
+   * of `tool`. When both are given, `tools` wins; when neither is given, every tool the preset
+   * defines is initialized (spec 4.1's own default for `init --preset=X` with no `[tool]`).
+   */
+  tools?: string[]
   /** Overwrite an existing config file instead of skipping that tool (spec 4.1). */
   force: boolean
   presetRegistry: PresetRegistry
@@ -33,6 +39,12 @@ export interface RunInitOptions {
    * matching how `sync`'s TUI resolver is injected (spec stage 8).
    */
   installDependencies?: (agent: Agent, packages: string[], cwd: string) => Promise<void>
+  /**
+   * Asked whenever a tool's config already exists and `force` is false, instead of the default
+   * "skip that tool" behavior — the interactive `init` flow uses this to turn it into a y/n
+   * prompt. Left undefined (the non-interactive default), an existing config is always skipped.
+   */
+  confirmOverwrite?: (tool: string, existingPath: string) => Promise<boolean>
 }
 
 export interface InitToolReport {
@@ -140,7 +152,14 @@ export async function runInit(options: RunInitOptions): Promise<ProjectInitRepor
   }
 
   let toolNames: string[]
-  if (options.tool) {
+  if (options.tools && options.tools.length > 0) {
+    for (const name of options.tools) {
+      if (!preset.tools[name]) {
+        return errorReport(`Preset "${preset.name}" does not define tool "${name}"`)
+      }
+    }
+    toolNames = options.tools
+  } else if (options.tool) {
     if (!preset.tools[options.tool]) {
       return errorReport(`Preset "${preset.name}" does not define tool "${options.tool}"`)
     }
@@ -168,13 +187,18 @@ export async function runInit(options: RunInitOptions): Promise<ProjectInitRepor
     // second, differently-named file the tool never actually reads (see JS_CONFIG_EXTENSIONS).
     const existingConfigPath = findExistingConfigPath(options.cwd, toolDef.configFileName)
     if (existingConfigPath && !options.force) {
-      toolReports.push({
-        tool: toolName,
-        configPath: existingConfigPath,
-        status: 'skipped',
-        message: `Config already exists at ${existingConfigPath} (use --force to overwrite)`,
-      })
-      continue
+      const overwrite = options.confirmOverwrite
+        ? await options.confirmOverwrite(toolName, existingConfigPath)
+        : false
+      if (!overwrite) {
+        toolReports.push({
+          tool: toolName,
+          configPath: existingConfigPath,
+          status: 'skipped',
+          message: `Config already exists at ${existingConfigPath} (use --force to overwrite)`,
+        })
+        continue
+      }
     }
 
     // With --force, overwrite whatever file already establishes this tool's config (even if

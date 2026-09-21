@@ -382,4 +382,103 @@ describe('runInit (real filesystem, builtin presets)', () => {
       semi: true,
     })
   })
+
+  it('initializes a subset of tools via `tools` (the interactive checkbox path), in one pass', async () => {
+    const { calls, install } = fakeInstaller()
+
+    const report = await runInit({
+      cwd: projectDir,
+      presetName: 'base',
+      tools: ['eslint', 'stylelint'],
+      force: false,
+      presetRegistry: builtinPresets,
+      installDependencies: install,
+    })
+
+    expect(report.tools.map((t) => t.tool)).toEqual(['eslint', 'stylelint'])
+    expect(() => readFileSync(join(projectDir, '.prettierrc.json'))).toThrow()
+    // one combined install call for both tools' dependencies, not one per tool
+    expect(calls).toHaveLength(1)
+
+    const manifest = parseManifest(
+      readFileSync(join(projectDir, '.lintsync', 'manifest.json'), 'utf8'),
+    )
+    expect(Object.keys(manifest).sort()).toEqual(['eslint', 'stylelint'])
+  })
+
+  it('reports an error when `tools` names a tool the preset does not define', async () => {
+    const report = await runInit({
+      cwd: projectDir,
+      presetName: 'npm-lib',
+      tools: ['eslint', 'stylelint'],
+      force: false,
+      presetRegistry: builtinPresets,
+    })
+    expect(report.exitCode).toBe(2)
+    expect(report.error).toContain('does not define tool "stylelint"')
+  })
+
+  it('asks confirmOverwrite instead of skipping when a config already exists', async () => {
+    writeFileSync(join(projectDir, '.prettierrc.json'), '{"semi": true}\n')
+    const asked: Array<{ tool: string; path: string }> = []
+
+    const report = await runInit({
+      cwd: projectDir,
+      presetName: 'npm-lib',
+      tool: 'prettier',
+      force: false,
+      presetRegistry: builtinPresets,
+      installDependencies: async () => {},
+      confirmOverwrite: async (tool, path) => {
+        asked.push({ tool, path })
+        return true
+      },
+    })
+
+    expect(asked).toEqual([{ tool: 'prettier', path: '.prettierrc.json' }])
+    expect(report.tools[0]?.status).toBe('created')
+    expect(JSON.parse(readFileSync(join(projectDir, '.prettierrc.json'), 'utf8'))).toEqual({
+      semi: false,
+      singleQuote: true,
+      trailingComma: 'all',
+      printWidth: 100,
+      tabWidth: 2,
+    })
+  })
+
+  it('skips as before when confirmOverwrite resolves false', async () => {
+    writeFileSync(join(projectDir, '.prettierrc.json'), '{"semi": true}\n')
+
+    const report = await runInit({
+      cwd: projectDir,
+      presetName: 'npm-lib',
+      tool: 'prettier',
+      force: false,
+      presetRegistry: builtinPresets,
+      installDependencies: async () => {},
+      confirmOverwrite: async () => false,
+    })
+
+    expect(report.tools[0]?.status).toBe('skipped')
+    expect(readFileSync(join(projectDir, '.prettierrc.json'), 'utf8')).toBe('{"semi": true}\n')
+  })
+
+  it('never calls confirmOverwrite when the config does not already exist', async () => {
+    let called = false
+
+    await runInit({
+      cwd: projectDir,
+      presetName: 'npm-lib',
+      tool: 'prettier',
+      force: false,
+      presetRegistry: builtinPresets,
+      installDependencies: async () => {},
+      confirmOverwrite: async () => {
+        called = true
+        return true
+      },
+    })
+
+    expect(called).toBe(false)
+  })
 })

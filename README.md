@@ -54,13 +54,15 @@ Installs dependencies, generates config file(s) from a preset, records them in t
 lintsync init --preset=vue-app          # eslint + prettier + stylelint, one shot
 lintsync init eslint --preset=npm-lib   # just eslint, e.g. because prettier is already set up
 lintsync init --preset=vue-app --force  # overwrite an existing config instead of skipping it
+lintsync init                           # no --preset in a real terminal: prompts interactively
 ```
 
 - Without `[tool]`, every tool the preset defines is initialized in one run.
 - If a tool's config file already exists (under any of its conventional names — e.g. `eslint.config.js`/`.mjs`/`.cjs`/`.ts`), that tool is **skipped** with a warning rather than aborting the whole command. Pass `--force` to overwrite it instead.
 - Dependencies are installed via whatever package manager the project already uses (detected from lockfiles), as ordinary `devDependencies` — lintsync never edits `package.json`'s dependency lists by hand.
+- Run with no `--preset` in a real terminal, `init` prompts: pick a curated preset, or pick tools individually with generic defaults (the `base` preset — see [Presets](#presets)). In CI (no TTY) or with `--json`, `--preset` is required and missing it is an error instead. Either way, if a config already exists, the interactive flow asks to overwrite it (y/n) rather than silently skipping — `--force` still skips that question.
 
-Flags: `--preset <name>` (required), `--force`, `--cwd`, `--json`, `--quiet`, `--verbose`.
+Flags: `--preset <name>` (omit to prompt interactively), `--force`, `--cwd`, `--json`, `--quiet`, `--verbose`.
 
 ### `lintsync sync [--tool <name>] [--dry-run] [--yes]`
 
@@ -185,12 +187,13 @@ The same table applies to `sync`, `status`, `init`, `get`, `set`, `unset`, and `
 
 ## Presets
 
-Two built-in presets ship today; presets live inside lintsync itself, never as separate npm packages, so `npm update lintsync` is how you get preset updates.
+Three built-in presets ship today; presets live inside lintsync itself, never as separate npm packages, so `npm update lintsync` is how you get preset updates.
 
 - **`vue-app`** — ESLint (flat config + `eslint-plugin-vue` + `typescript-eslint`) + Prettier + Stylelint, for Vue/Nuxt applications.
-- **`npm-lib`** — ESLint (flat config + `typescript-eslint`) + Prettier, for library-style npm packages with no CSS.
+- **`npm-lib`** — ESLint (flat config + `typescript-eslint`) + Prettier, for library-style npm packages with no CSS. Stricter unused-code/`any` rules than `base`, since mistakes in published library code are more expensive.
+- **`base`** — ESLint + Prettier + Stylelint with mild, generic defaults, not tied to any stack. This is what interactive `init`'s "pick tools individually" path uses.
 
-Both use: no semicolons, single quotes, `trailingComma: 'all'`, `printWidth: 100`, `tabWidth: 2`.
+All three use the same base style: no semicolons, single quotes, `trailingComma: 'all'`, `printWidth: 100`, `tabWidth: 2`.
 
 ## Supported config formats
 
