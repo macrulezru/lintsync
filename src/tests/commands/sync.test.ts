@@ -276,4 +276,75 @@ rules:
   no-debugger: error
 `)
   })
+
+  it('applies a change to a real flat-config .js file, preserving comments', () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.js',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      {
+        'eslint.config.js': `// team config
+export default {
+  rules: {
+    'no-console': 'off',
+    'no-debugger': 'error',
+  },
+}
+`,
+      },
+    )
+
+    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+
+    expect(report.exitCode).toBe(0)
+    expect(report.tools[0]?.status).toBe('updated')
+
+    const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.js'), 'utf8')
+    expect(fileOnDisk).toBe(`// team config
+export default {
+  rules: {
+    'no-console': 'warn',
+    'no-debugger': 'error',
+  },
+}
+`)
+  })
+
+  it('reports a per-tool error instead of crashing when a .js config value is a dynamic expression', () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.js',
+          managed: {},
+        },
+      },
+      {
+        'eslint.config.js': `export default {
+  rules: {
+    'no-console': someImportedVar,
+  },
+}
+`,
+      },
+    )
+
+    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+
+    expect(report.exitCode).toBe(2)
+    expect(report.tools[0]).toMatchObject({
+      status: 'error',
+      error: expect.stringContaining('dynamic expression'),
+    })
+
+    // the file must be left completely untouched
+    const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.js'), 'utf8')
+    expect(fileOnDisk).toContain('someImportedVar')
+  })
 })

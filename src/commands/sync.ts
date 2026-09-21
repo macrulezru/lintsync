@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { extname, join } from 'node:path'
+import { jsAdapter } from '../merge-engine/js-adapter.js'
 import { jsonAdapter } from '../merge-engine/json-adapter.js'
 import {
   parseManifest,
@@ -43,6 +44,16 @@ function pickAdapter(configPath: string): ConfigAdapter | undefined {
   }
   if (ext === '.yaml' || ext === '.yml') {
     return yamlAdapter
+  }
+  if (
+    ext === '.js' ||
+    ext === '.mjs' ||
+    ext === '.cjs' ||
+    ext === '.ts' ||
+    ext === '.mts' ||
+    ext === '.cts'
+  ) {
+    return jsAdapter
   }
   return undefined
 }
@@ -92,7 +103,7 @@ function syncOneTool(
         configPath: toolManifest.configPath,
         preset: presetDisplay,
         result: {
-          error: `Unsupported config format for "${toolManifest.configPath}" (only .json/.jsonc/.yaml/.yml are implemented so far)`,
+          error: `Unsupported config format for "${toolManifest.configPath}" (only .json/.jsonc/.yaml/.yml/.js/.mjs/.cjs/.ts/.mts/.cts are implemented so far)`,
         },
       },
     }
@@ -114,13 +125,30 @@ function syncOneTool(
   }
 
   const presetSnapshot = toPresetSnapshot(preset, toolDef)
-  const result = syncTool({
-    adapter,
-    fileText,
-    preset: presetSnapshot,
-    manifestManaged: toolManifest.managed,
-    dryRun: !applyChanges,
-  })
+
+  let result
+  try {
+    result = syncTool({
+      adapter,
+      fileText,
+      preset: presetSnapshot,
+      manifestManaged: toolManifest.managed,
+      dryRun: !applyChanges,
+    })
+  } catch (cause) {
+    // The JS/TS adapter rejects edits it cannot safely make (spec 7.4.3: a dynamic expression
+    // in place of a literal) by throwing rather than guessing — surface that as a normal
+    // per-tool error instead of letting it crash the whole `sync` run.
+    const message = cause instanceof Error ? cause.message : String(cause)
+    return {
+      attempt: {
+        tool: toolName,
+        configPath: toolManifest.configPath,
+        preset: presetDisplay,
+        result: { error: message },
+      },
+    }
+  }
 
   const attempt: ToolSyncAttempt = {
     tool: toolName,
