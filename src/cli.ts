@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { Command } from 'commander'
 import { runGet, runSet, runUnset } from './commands/edit.js'
 import { runInit } from './commands/init.js'
+import { runMigrate } from './commands/migrate.js'
 import {
   defaultRegistryPath,
   runProjectsAdd,
@@ -15,6 +16,7 @@ import { runSyncBatch } from './commands/sync-batch.js'
 import { renderHumanBatchReport } from './format/human-batch-report.js'
 import { renderGetResult, renderSetResult, renderUnsetResult } from './format/human-edit-report.js'
 import { renderHumanInitReport } from './format/human-init-report.js'
+import { renderHumanMigrateReport } from './format/human-migrate-report.js'
 import { renderProjectsList } from './format/human-projects-report.js'
 import { renderHumanReport, type Verbosity } from './format/human-report.js'
 import { parsePathExpression, PathParseError } from './merge-engine/path.js'
@@ -406,6 +408,32 @@ projects
     }
 
     process.exitCode = result.exitCode
+  })
+
+program
+  .command('migrate')
+  .description('Convert a legacy config to a new format/location (spec 4.4)')
+  .argument('<tool>', 'eslint, prettier, or stylelint')
+  .requiredOption(
+    '--to <format>',
+    'target format: "flat" for eslint; "json"/"yaml"/"js" for prettier/stylelint',
+  )
+  .option('--cwd <path>', 'project directory', process.cwd())
+  .option('--json', 'machine-readable output', false)
+  .option('--quiet', 'suppress output on success', false)
+  .action((tool: string, options: { to: string; cwd: string; json: boolean; quiet: boolean }) => {
+    const report = runMigrate({ cwd: resolve(options.cwd), tool, to: options.to })
+
+    if (options.json) {
+      console.log(JSON.stringify(report))
+    } else {
+      const text = renderHumanMigrateReport(report, options.quiet ? 'quiet' : 'default')
+      if (text) {
+        console.log(text)
+      }
+    }
+
+    process.exitCode = report.exitCode
   })
 
 program.parse(process.argv)
