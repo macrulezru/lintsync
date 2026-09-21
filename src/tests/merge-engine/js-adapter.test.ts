@@ -162,14 +162,45 @@ describe('js (adapter-specific)', () => {
     ).toThrow(UnsupportedEditError)
   })
 
-  it('treats an array-exported config (not an object literal) as having no root, without throwing on read', () => {
-    const handle = jsAdapter.parse('export default [{ rules: {} }]\n')
+  it('manages the trailing object of an array export (real flat-config shape, spec 11.1)', () => {
+    const text = `import pluginVue from 'eslint-plugin-vue'
+
+export default [
+  ...pluginVue.configs['flat/recommended'],
+  {
+    rules: {
+      'no-console': 'off',
+    },
+  },
+]
+`
+    const handle = jsAdapter.parse(text)
+    expect(jsAdapter.getValueAt(handle, ['rules', 'no-console'])).toBe('off')
+
+    const result = jsAdapter.applyEdits(handle, [
+      { op: 'set', path: ['rules', 'no-console'], value: 'warn' },
+    ])
+    expect(result).toBe(`import pluginVue from 'eslint-plugin-vue'
+
+export default [
+  ...pluginVue.configs['flat/recommended'],
+  {
+    rules: {
+      'no-console': 'warn',
+    },
+  },
+]
+`)
+  })
+
+  it('treats an array export with no trailing object literal as having no root, without throwing on read', () => {
+    const handle = jsAdapter.parse('export default [...spreadOnly, 42]\n')
     expect(jsAdapter.getValueAt(handle, ['rules'])).toBe(NOT_FOUND)
     expect(jsAdapter.listPaths(handle, [])).toEqual([])
   })
 
   it('rejects editing when no recognizable object literal export exists at all', () => {
-    const handle = jsAdapter.parse('export default [{ rules: {} }]\n')
+    const handle = jsAdapter.parse('export default [...spreadOnly, 42]\n')
     expect(() => jsAdapter.applyEdits(handle, [{ op: 'set', path: ['rules'], value: {} }])).toThrow(
       UnsupportedEditError,
     )

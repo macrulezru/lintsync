@@ -7,6 +7,9 @@ const preset: Preset = { name: 'vue-app', version: '1.4.0', tools: {} }
 describe('toPresetSnapshot', () => {
   it('nests rules under the managedKeys prefix (eslint/stylelint-style rules.*)', () => {
     const toolDef: PresetToolDefinition = {
+      configFormat: 'flat',
+      configFileName: 'eslint.config.js',
+      dependencies: [],
       rules: { 'no-console': 'warn', 'no-debugger': 'error' },
       managedKeys: ['rules.*'],
     }
@@ -23,6 +26,9 @@ describe('toPresetSnapshot', () => {
 
   it('places rules at the config root for a bare `*` (Prettier-style flat config)', () => {
     const toolDef: PresetToolDefinition = {
+      configFormat: 'json',
+      configFileName: '.prettierrc.json',
+      dependencies: [],
       rules: { semi: false, singleQuote: true },
       managedKeys: ['*'],
     }
@@ -35,6 +41,9 @@ describe('toPresetSnapshot', () => {
 
   it('rejects a managedKeys pattern that does not end in a wildcard', () => {
     const toolDef: PresetToolDefinition = {
+      configFormat: 'flat',
+      configFileName: 'eslint.config.js',
+      dependencies: [],
       rules: { 'no-console': 'warn' },
       managedKeys: ['rules.no-console'],
     }

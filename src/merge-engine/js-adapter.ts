@@ -45,11 +45,29 @@ function createProject(): Project {
 
 let fileCounter = 0
 
+/**
+ * A real flat config is often `export default [...spreadBaseConfigs, { rules: {...} }]` (spec
+ * 11.1's baseExtends composed via array spreading) rather than a single object — by convention
+ * (and by init's own generation, see presets/generate-config.ts) the project's own overrides go
+ * last. Only the trailing element is ever managed; earlier elements (imported/spread base
+ * configs) are exactly the kind of expression 7.4.3 says merge-engine must not try to guess at.
+ */
+function unwrapConfigValue(expression: Node): ObjectLiteralExpression | undefined {
+  if (Node.isObjectLiteralExpression(expression)) {
+    return expression
+  }
+  if (Node.isArrayLiteralExpression(expression)) {
+    const elements = expression.getElements()
+    const last = elements[elements.length - 1]
+    return last && Node.isObjectLiteralExpression(last) ? last : undefined
+  }
+  return undefined
+}
+
 function findRootObject(sourceFile: SourceFile): ObjectLiteralExpression | undefined {
   const exportAssignment = sourceFile.getExportAssignment((node) => !node.isExportEquals())
   if (exportAssignment) {
-    const expression = exportAssignment.getExpression()
-    return Node.isObjectLiteralExpression(expression) ? expression : undefined
+    return unwrapConfigValue(exportAssignment.getExpression())
   }
 
   for (const statement of sourceFile.getStatements()) {
@@ -63,9 +81,9 @@ function findRootObject(sourceFile: SourceFile): ObjectLiteralExpression | undef
     if (expression.getLeft().getText() !== 'module.exports') {
       continue
     }
-    const right = expression.getRight()
-    if (Node.isObjectLiteralExpression(right)) {
-      return right
+    const unwrapped = unwrapConfigValue(expression.getRight())
+    if (unwrapped) {
+      return unwrapped
     }
   }
 
@@ -188,11 +206,14 @@ function quoteString(value: string): string {
   return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
 }
 
-function toPropertyName(key: string): string {
+/** Exported for presets/generate-config.ts, so init-time codegen uses the identical quoting
+ *  convention as later point-edits (single-quote strings, bracket-quoted non-identifier keys). */
+export function toPropertyName(key: string): string {
   return IDENTIFIER_PATTERN.test(key) ? key : quoteString(key)
 }
 
-function literalToSourceText(value: JsonValue): string {
+/** Exported for presets/generate-config.ts (see toPropertyName). */
+export function literalToSourceText(value: JsonValue): string {
   if (value === null) {
     return 'null'
   }
@@ -261,14 +282,17 @@ function deleteAtPath(root: ObjectLiteralExpression, path: ConfigPath): void {
 
 /**
  * ConfigAdapter for flat-config `.js`/`.mjs`/`.ts` files (spec 7.4.3), built on ts-morph. Scope
- * is deliberately narrow, per spec: it only recognizes `export default {...}` or
- * `module.exports = {...}` where the exported value is directly an object literal — an array
- * export, a call-wrapped config (`defineConfig({...})`), or a `satisfies` expression all fall
- * back to "no root object found" rather than guessing. Likewise, only genuinely literal values
- * (string/number/boolean/null and arrays/objects built from them) are ever read or replaced;
- * a dynamic expression (spread, function call, imported variable, template with substitutions)
- * reads as NOT_FOUND and rejects being overwritten with UnsupportedEditError instead of being
- * silently clobbered.
+ * is deliberately narrow, per spec: it recognizes `export default {...}` / `module.exports =
+ * {...}`, and — since a real flat config is usually `export default [...spreadBaseConfigs,
+ * { rules: {...} }]` (spec 11.1's baseExtends) — also `export default [...]` / `module.exports =
+ * [...]` where the trailing array element is an object literal (matching how `init`, spec stage
+ * 9, generates these files: project overrides always go last). Anything else — an array with no
+ * trailing object, a call-wrapped config (`defineConfig({...})`), a `satisfies` expression — all
+ * fall back to "no root object found" rather than guessing. Likewise, only genuinely literal
+ * values (string/number/boolean/null and arrays/objects built from them) are ever read or
+ * replaced; a dynamic expression (spread, function call, imported variable, template with
+ * substitutions) reads as NOT_FOUND and rejects being overwritten with UnsupportedEditError
+ * instead of being silently clobbered.
  */
 export const jsAdapter: ConfigAdapter<JsHandle> = {
   parse(sourceText) {

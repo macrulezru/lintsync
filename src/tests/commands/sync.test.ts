@@ -17,8 +17,20 @@ const testPreset: Preset = {
   name: 'test-preset',
   version: '2.0.0',
   tools: {
-    eslint: { rules: { 'no-console': 'warn', 'no-debugger': 'error' }, managedKeys: ['rules.*'] },
-    prettier: { rules: { semi: false }, managedKeys: ['*'] },
+    eslint: {
+      configFormat: 'flat',
+      configFileName: 'eslint.config.js',
+      dependencies: [],
+      rules: { 'no-console': 'warn', 'no-debugger': 'error' },
+      managedKeys: ['rules.*'],
+    },
+    prettier: {
+      configFormat: 'json',
+      configFileName: '.prettierrc.json',
+      dependencies: [],
+      rules: { semi: false },
+      managedKeys: ['*'],
+    },
   },
 }
 const presetRegistry: PresetRegistry = {

@@ -1,7 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import { extname, join } from 'node:path'
-import { jsAdapter } from '../merge-engine/js-adapter.js'
-import { jsonAdapter } from '../merge-engine/json-adapter.js'
+import { join } from 'node:path'
 import {
   parseManifest,
   serializeManifest,
@@ -22,11 +20,11 @@ import {
   type SyncResult,
 } from '../merge-engine/sync.js'
 import type { ConfigAdapter, ConfigEdit, JsonValue } from '../merge-engine/types.js'
-import { yamlAdapter } from '../merge-engine/yaml-adapter.js'
 import { toPresetSnapshot } from '../presets/snapshot.js'
 import type { Preset } from '../presets/types.js'
 import type { PresetRegistry } from '../presets/types.js'
 import type { ConflictItem, Resolution } from '../tui/types.js'
+import { pickAdapter } from './pick-adapter.js'
 
 export interface RunSyncOptions {
   cwd: string
@@ -61,27 +59,6 @@ export interface RunSyncOptions {
 }
 
 const MANIFEST_RELATIVE_PATH = join('.lintsync', 'manifest.json')
-
-function pickAdapter(configPath: string): ConfigAdapter | undefined {
-  const ext = extname(configPath).toLowerCase()
-  if (ext === '.json' || ext === '.jsonc') {
-    return jsonAdapter
-  }
-  if (ext === '.yaml' || ext === '.yml') {
-    return yamlAdapter
-  }
-  if (
-    ext === '.js' ||
-    ext === '.mjs' ||
-    ext === '.cjs' ||
-    ext === '.ts' ||
-    ext === '.mts' ||
-    ext === '.cts'
-  ) {
-    return jsAdapter
-  }
-  return undefined
-}
 
 async function defaultResolveConflicts(conflicts: ConflictItem[]): Promise<Resolution[]> {
   const { resolveConflictsInteractively } = await import('../tui/run-conflict-resolver.js')

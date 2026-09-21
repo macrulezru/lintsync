@@ -1,14 +1,52 @@
 import type { JsonValue } from '../merge-engine/types.js'
 
 /**
- * One tool's slice of a preset (spec 7.1): the values it wants to own, plus which paths
- * (bracket-notation patterns, e.g. `rules.*` or `*`) it considers managed. `managedKeys` are
- * raw strings here — parsed into ConfigPath patterns by `toPresetSnapshot`.
+ * One base config to compose into a generated flat `eslint.config.js` (spec 11.1's
+ * `baseExtends`), e.g. `eslint-plugin-vue/flat/recommended`. The spec's own preset snippet
+ * shows these as bare strings, but generating a real, runnable import statement needs more than
+ * a label — a package can't be resolved into working code without knowing what to import and
+ * how to reference it, and that varies per package (a plain default import + property access
+ * for `typescript-eslint`, for instance, rather than a literal subpath import). This is the
+ * structured equivalent `presets/generate-config.ts` actually codegens from.
  */
-export interface PresetToolDefinition {
+export interface EslintBaseExtend {
+  /** Module specifier to import, e.g. `'eslint-plugin-vue'`. */
+  importPath: string
+  /** Local binding name for the default import. */
+  importName: string
+  /** JS expression (referencing importName) evaluating to a config array to spread in. */
+  expression: string
+}
+
+interface PresetToolDefinitionBase {
+  /** npm packages `init` installs as devDependencies for this tool (spec 4.1/11). */
+  dependencies: string[]
+  /** Filename `init` creates relative to the project root, e.g. `'.prettierrc.json'`. */
+  configFileName: string
+  /** The values this tool's preset owns, at the paths covered by managedKeys (spec 7.1). */
   rules: JsonValue
+  /** Bracket-notation managedKeys patterns (spec 7.1); parsed into ConfigPath by toPresetSnapshot. */
   managedKeys: string[]
 }
+
+/** A flat `eslint.config.js`-shaped tool (spec 7.4.3/11.1): array export, base configs spread in. */
+export interface FlatJsPresetToolDefinition extends PresetToolDefinitionBase {
+  configFormat: 'flat'
+  baseExtends?: EslintBaseExtend[]
+}
+
+/** A plain JSON config file (Prettier/Stylelint, spec 11.1). */
+export interface JsonPresetToolDefinition extends PresetToolDefinitionBase {
+  configFormat: 'json'
+  /**
+   * Package names for the JSON file's own `extends` array (e.g. Stylelint's
+   * `stylelint-config-standard-scss`) — unlike the flat-JS case, JSON's `extends` is just a
+   * list of strings the tool resolves itself, no import wrangling needed.
+   */
+  extendsPackages?: string[]
+}
+
+export type PresetToolDefinition = FlatJsPresetToolDefinition | JsonPresetToolDefinition
 
 export interface Preset {
   name: string
