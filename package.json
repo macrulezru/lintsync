@@ -28,7 +28,8 @@
     "format:fix": "prettier --write ."
   },
   "dependencies": {
-    "commander": "^13.1.0"
+    "commander": "^13.1.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
