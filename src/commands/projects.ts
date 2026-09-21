@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { defaultRegistryPath as osDefaultRegistryPath } from '../config/paths.js'
 import {
   addProject,
   listProjects,
@@ -9,12 +9,15 @@ import {
   serializeRegistry,
 } from '../registry/registry.js'
 import type { ProjectEntry, ProjectsRegistry } from '../registry/types.js'
+import { loadMainConfig } from './main-config.js'
 
-/** Default location for the global project registry (spec section 3). The spec also mentions a
- *  `lintsync.projects.yaml` alternative without settling on one; JSON is used here for the same
- *  reason section 7.2 gives for the per-project manifest — one format, no parser ambiguity. */
+/** Default location for the global project registry (spec section 3): the main config's own
+ *  `registryPath` if it sets one, else the OS-standard config directory (`config/paths.ts`). The
+ *  spec also mentions a `lintsync.projects.yaml` alternative without settling on one; JSON is
+ *  used here for the same reason section 7.2 gives for the per-project manifest — one format,
+ *  no parser ambiguity. */
 export function defaultRegistryPath(): string {
-  return join(homedir(), '.lintsync', 'projects.json')
+  return loadMainConfig().registryPath ?? osDefaultRegistryPath()
 }
 
 export function loadRegistry(registryPath: string): ProjectsRegistry {

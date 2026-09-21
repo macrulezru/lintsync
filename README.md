@@ -60,7 +60,13 @@ lintsync init                           # no --preset in a real terminal: prompt
 - Without `[tool]`, every tool the preset defines is initialized in one run.
 - If a tool's config file already exists (under any of its conventional names — e.g. `eslint.config.js`/`.mjs`/`.cjs`/`.ts`), that tool is **skipped** with a warning rather than aborting the whole command. Pass `--force` to overwrite it instead.
 - Dependencies are installed via whatever package manager the project already uses (detected from lockfiles), as ordinary `devDependencies` — lintsync never edits `package.json`'s dependency lists by hand.
-- Run with no `--preset` in a real terminal, `init` prompts: pick a curated preset, or pick tools individually with generic defaults (the `base` preset — see [Presets](#presets)). In CI (no TTY) or with `--json`, `--preset` is required and missing it is an error instead. Either way, if a config already exists, the interactive flow asks to overwrite it (y/n) rather than silently skipping — `--force` still skips that question.
+- `--preset <name>` resolves against both the 3 built-in presets and any presets you've saved locally (see [`presets`](#lintsync-presets-listremove) below) — same name, same behavior either way.
+- Run with no `--preset` in a real terminal, `init` prompts with three options:
+  - **Use a built-in or saved preset** — pick from `vue-app`/`npm-lib` plus anything you've saved locally.
+  - **Pick tools individually (generic defaults)** — checkboxes for ESLint/Prettier/Stylelint, using the `base` preset's values as-is (see [Presets](#presets)).
+  - **Build and save a new custom preset** — an interactive constructor: pick which tools to include (ESLint, if included, reuses `base`'s generic block verbatim — no per-rule editor for it); for Prettier, pick which of its own options to set from its live option list (from Prettier's own `getSupportInfo()` API) and set each one (checkbox for booleans, a list of the real valid values for choice options, free text for numbers/strings); for Stylelint, optionally extend a base config and toggle a short hand-curated list of common rules (Stylelint has no equivalent live-schema API, unlike Prettier). You're then asked to name the preset — it's saved to the local presets store (see [Global config and storage](#global-config-and-storage)) and appears in the preset list from then on, in every project.
+
+  In CI (no TTY) or with `--json`, `--preset` is required and missing it is an error instead. Either way, if a config already exists, the interactive flow asks to overwrite it (y/n) rather than silently skipping — `--force` still skips that question.
 
 Flags: `--preset <name>` (omit to prompt interactively), `--force`, `--cwd`, `--json`, `--quiet`, `--verbose`.
 
@@ -162,7 +168,7 @@ Legacy sources are found by conventional filename (`.eslintrc.json`, `.eslintrc.
 
 ### `lintsync projects add/remove/list`
 
-Manages a global registry of known projects at `~/.lintsync/projects.json`, for batch operations.
+Manages a global registry of known projects, for batch operations.
 
 ```sh
 lintsync projects add vuecraft ~/dev/vuecraft --tags type:site
@@ -172,7 +178,41 @@ lintsync projects list --tag type:site
 lintsync projects remove vuecraft
 ```
 
-Pass `--registry <path>` to any of these (or to `sync --all` / `status --all`) to use a registry file somewhere other than the default.
+Pass `--registry <path>` to any of these (or to `sync --all` / `status --all`) to use a registry file somewhere other than the default (see [Global config and storage](#global-config-and-storage)).
+
+### `lintsync presets list/remove`
+
+Manages presets you've built and saved via interactive `init`'s "build a new custom preset" path.
+
+```sh
+lintsync presets list
+lintsync presets remove my-team
+```
+
+A locally-saved preset appears in `init`'s preset picker (and resolves via `--preset <name>`) in every project on the machine, alongside the built-in ones — see [`init`](#lintsync-init-tool---presetname) above for how to build one. Pass `--presets <path>` to either command to use a store somewhere other than the default.
+
+## Global config and storage
+
+Two files hold state that's global to the machine, not to any one project — the project registry (`projects`) and locally-saved presets (`presets`). By default both live in the OS-standard per-user config directory (via [`env-paths`](https://github.com/sindresorhus/env-paths)), not inside lintsync's own install location or the current project:
+
+| OS      | Default directory                                          |
+| ------- | ---------------------------------------------------------- |
+| Windows | `%APPDATA%\lintsync\Config`                                |
+| macOS   | `~/Library/Preferences/lintsync`                           |
+| Linux   | `$XDG_CONFIG_HOME/lintsync` (usually `~/.config/lintsync`) |
+
+Inside it: `projects.json` (the project registry), `presets.json` (locally-saved presets), and `config.json` — lintsync's own main config, which you edit by hand:
+
+```json
+{
+  "presetsPath": "/somewhere/else/presets.json",
+  "registryPath": "/somewhere/else/projects.json"
+}
+```
+
+Either field is optional; set only the one you want to relocate. This `config.json` is itself found via, in order: the `--config <path>` flag, the `LINTSYNC_CONFIG` environment variable, then the OS-standard directory above. `--config` must come **before** the subcommand name (`lintsync --config ~/my-lintsync.json sync`, not `lintsync sync --config ...`) — like any other global flag, commander rejects it if placed after.
+
+Precedence for where `projects.json`/`presets.json` actually live, highest first: a command's own `--registry`/`--presets` flag for that one invocation → `registryPath`/`presetsPath` in `config.json` → the OS-standard default. A missing `config.json` (or a missing/unreadable `projects.json`/`presets.json`) is not an error — lintsync just starts from empty/default state.
 
 ## Exit codes
 
@@ -194,6 +234,8 @@ Three built-in presets ship today; presets live inside lintsync itself, never as
 - **`base`** — ESLint + Prettier + Stylelint with mild, generic defaults, not tied to any stack. This is what interactive `init`'s "pick tools individually" path uses.
 
 All three use the same base style: no semicolons, single quotes, `trailingComma: 'all'`, `printWidth: 100`, `tabWidth: 2`.
+
+On top of these, you can build your own presets interactively (`init` → "Build and save a new custom preset") and save them locally — see [`presets`](#lintsync-presets-listremove) and [Global config and storage](#global-config-and-storage). They behave exactly like the built-in ones: same `--preset <name>` resolution, same preset-picker list, same manifest/sync behavior.
 
 ## Supported config formats
 

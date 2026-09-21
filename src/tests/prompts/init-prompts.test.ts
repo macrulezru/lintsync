@@ -27,6 +27,7 @@ function fakePrompts(answers: unknown[]): InitPromptsApi & { messages: string[] 
     select: (async () => next()) as InitPromptsApi['select'],
     multiselect: (async () => next()) as InitPromptsApi['multiselect'],
     confirm: (async () => next()) as InitPromptsApi['confirm'],
+    text: (async () => next()) as InitPromptsApi['text'],
     isCancel: (value: unknown): value is symbol => value === CANCEL,
   }
 }
@@ -40,10 +41,30 @@ describe('promptForInitChoice', () => {
     expect(prompts.messages.at(-1)).toContain('outro')
   })
 
-  it('returns the base preset with the selected tools for the custom path', async () => {
-    const prompts = fakePrompts(['custom', ['eslint', 'stylelint']])
+  it('includes locally-saved presets in the preset list', async () => {
+    const prompts = fakePrompts(['preset', 'my-team'])
+    const choice = await promptForInitChoice(prompts, [
+      { name: 'my-team', version: '0.1.0', tools: {} },
+    ])
+    expect(choice).toEqual({ presetName: 'my-team' })
+  })
+
+  it('returns the base preset with the selected tools for the individual-tools path', async () => {
+    const prompts = fakePrompts(['individual', ['eslint', 'stylelint']])
     const choice = await promptForInitChoice(prompts)
     expect(choice).toEqual({ presetName: 'base', tools: ['eslint', 'stylelint'] })
+  })
+
+  it('returns a newPreset from the build-a-custom-preset path', async () => {
+    const prompts = fakePrompts([
+      'build',
+      ['eslint'], // buildCustomPreset's own tool multiselect
+      'my-new-preset', // buildCustomPreset's own name prompt
+    ])
+    const choice = await promptForInitChoice(prompts)
+    expect(choice?.presetName).toBe('my-new-preset')
+    expect(choice?.newPreset?.name).toBe('my-new-preset')
+    expect(choice?.newPreset?.tools.eslint).toBeDefined()
   })
 
   it('returns null when the mode selection is cancelled', async () => {
@@ -59,8 +80,14 @@ describe('promptForInitChoice', () => {
     expect(choice).toBeNull()
   })
 
-  it('returns null when the tool multiselect is cancelled', async () => {
-    const prompts = fakePrompts(['custom', CANCEL])
+  it('returns null when the individual-tools multiselect is cancelled', async () => {
+    const prompts = fakePrompts(['individual', CANCEL])
+    const choice = await promptForInitChoice(prompts)
+    expect(choice).toBeNull()
+  })
+
+  it('returns null when the build-a-custom-preset path is cancelled', async () => {
+    const prompts = fakePrompts(['build', CANCEL])
     const choice = await promptForInitChoice(prompts)
     expect(choice).toBeNull()
   })

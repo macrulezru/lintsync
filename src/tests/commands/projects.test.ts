@@ -1,13 +1,15 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  defaultRegistryPath,
   loadRegistry,
   runProjectsAdd,
   runProjectsList,
   runProjectsRemove,
 } from '../../commands/projects.js'
+import { defaultRegistryPath as osDefaultRegistryPath } from '../../config/paths.js'
 
 let dir: string
 let registryPath: string
@@ -88,5 +90,23 @@ describe('runProjectsList', () => {
 
     expect(runProjectsList(registryPath, 'site').projects.map((p) => p.name)).toEqual(['vuecraft'])
     expect(runProjectsList(registryPath).projects).toHaveLength(2)
+  })
+})
+
+describe('defaultRegistryPath', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('falls back to the OS-standard default with no main config', () => {
+    vi.stubEnv('LINTSYNC_CONFIG', join(dir, 'does-not-exist.json'))
+    expect(defaultRegistryPath()).toBe(osDefaultRegistryPath())
+  })
+
+  it("honors the main config's registryPath override", () => {
+    const configPath = join(dir, 'config.json')
+    writeFileSync(configPath, JSON.stringify({ registryPath: '/custom/projects.json' }), 'utf8')
+    vi.stubEnv('LINTSYNC_CONFIG', configPath)
+    expect(defaultRegistryPath()).toBe('/custom/projects.json')
   })
 })

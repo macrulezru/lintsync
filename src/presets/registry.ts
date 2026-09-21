@@ -17,3 +17,7 @@ const presets = new Map<string, Preset>([
 export const builtinPresets: PresetRegistry = {
   getPreset: (name) => presets.get(name),
 }
+
+/** Names reserved by built-in presets — a locally-saved preset can't reuse one (see
+ *  `registry/local-presets.ts`'s `addLocalPreset`). */
+export const builtinPresetNames: string[] = [...presets.keys()]
