@@ -1,0 +1,43 @@
+{
+  "name": "lintsync",
+  "version": "0.1.0",
+  "description": "CLI to keep ESLint/Prettier/Stylelint configs in sync with a preset, with per-key ownership and conflict resolution",
+  "type": "module",
+  "license": "MIT",
+  "author": "Danil Lisin",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "lintsync": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write ."
+  },
+  "dependencies": {
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^20.14.0",
+    "eslint": "^9.20.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.23.0",
+    "vitest": "^3.0.5"
+  }
+}
