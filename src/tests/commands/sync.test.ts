@@ -244,4 +244,36 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     expect(report.tools).toHaveLength(1)
     expect(report.tools[0]?.tool).toBe('eslint')
   })
+
+  it('applies a change to a real .yaml config file, preserving comments', () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.yaml',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      {
+        'eslint.config.yaml': `# team config
+rules:
+  no-console: off
+  no-debugger: error
+`,
+      },
+    )
+
+    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+
+    expect(report.exitCode).toBe(0)
+    expect(report.tools[0]?.status).toBe('updated')
+
+    const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.yaml'), 'utf8')
+    expect(fileOnDisk).toBe(`# team config
+rules:
+  no-console: warn
+  no-debugger: error
+`)
+  })
 })

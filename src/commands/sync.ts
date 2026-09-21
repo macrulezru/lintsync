@@ -14,6 +14,7 @@ import {
 } from '../merge-engine/report.js'
 import { syncTool } from '../merge-engine/sync.js'
 import type { ConfigAdapter } from '../merge-engine/types.js'
+import { yamlAdapter } from '../merge-engine/yaml-adapter.js'
 import { toPresetSnapshot } from '../presets/snapshot.js'
 import type { PresetRegistry } from '../presets/types.js'
 
@@ -37,7 +38,13 @@ const MANIFEST_RELATIVE_PATH = join('.lintsync', 'manifest.json')
 
 function pickAdapter(configPath: string): ConfigAdapter | undefined {
   const ext = extname(configPath).toLowerCase()
-  return ext === '.json' || ext === '.jsonc' ? jsonAdapter : undefined
+  if (ext === '.json' || ext === '.jsonc') {
+    return jsonAdapter
+  }
+  if (ext === '.yaml' || ext === '.yml') {
+    return yamlAdapter
+  }
+  return undefined
 }
 
 interface ToolSyncOutcome {
@@ -85,7 +92,7 @@ function syncOneTool(
         configPath: toolManifest.configPath,
         preset: presetDisplay,
         result: {
-          error: `Unsupported config format for "${toolManifest.configPath}" (only .json/.jsonc are implemented so far)`,
+          error: `Unsupported config format for "${toolManifest.configPath}" (only .json/.jsonc/.yaml/.yml are implemented so far)`,
         },
       },
     }
