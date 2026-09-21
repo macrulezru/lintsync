@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { assembleProjectReport, type ToolSyncAttempt } from '../../merge-engine/report.js'
+import {
+  assembleProjectReport,
+  projectSyncError,
+  type ToolSyncAttempt,
+} from '../../merge-engine/report.js'
 import type { PresetSnapshot, SyncResult } from '../../merge-engine/sync.js'
 
 const preset: PresetSnapshot = {
@@ -91,5 +95,27 @@ describe('assembleProjectReport', () => {
       'vuecraft',
     )
     expect(report.project).toBe('vuecraft')
+  })
+
+  it('leaves error null on a normal (non-whole-project-failure) report', () => {
+    const report = assembleProjectReport([
+      { tool: 'eslint', configPath: 'eslint.config.js', preset, result: cleanResult },
+    ])
+    expect(report.error).toBeNull()
+  })
+})
+
+describe('projectSyncError', () => {
+  it('produces an empty-tools, exitCode-2 report carrying the failure message', () => {
+    expect(projectSyncError('No .lintsync/manifest.json found')).toEqual({
+      project: null,
+      tools: [],
+      exitCode: 2,
+      error: 'No .lintsync/manifest.json found',
+    })
+  })
+
+  it('carries the project name through for batch-mode callers', () => {
+    expect(projectSyncError('boom', 'vuecraft').project).toBe('vuecraft')
   })
 })

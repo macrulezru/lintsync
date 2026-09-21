@@ -123,6 +123,7 @@ describe('single-project sync pipeline (JSON-only, spec 7.5.3 shape)', () => {
         },
       ],
       exitCode: 1,
+      error: null,
     })
   })
 })

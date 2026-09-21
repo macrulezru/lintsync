@@ -1,9 +1,9 @@
-import type { PresetSnapshot, SyncChange, SyncConflict, SyncResult, SyncStatus } from './sync.js'
+import type { SyncChange, SyncConflict, SyncResult, SyncStatus } from './sync.js'
 
 export interface ToolSyncAttempt {
   tool: string
   configPath: string
-  preset: PresetSnapshot
+  preset: { name: string; version: string }
   result: SyncResult | { error: string }
 }
 
@@ -21,6 +21,9 @@ export interface ProjectSyncReport {
   project: string | null
   tools: ToolSyncReport[]
   exitCode: number
+  /** Set only for a whole-project failure (e.g. no .lintsync/manifest.json at all) that never
+   *  got as far as attempting any individual tool. */
+  error: string | null
 }
 
 function toToolSyncReport(attempt: ToolSyncAttempt): ToolSyncReport {
@@ -67,5 +70,13 @@ export function assembleProjectReport(
   project: string | null = null,
 ): ProjectSyncReport {
   const tools = attempts.map(toToolSyncReport)
-  return { project, tools, exitCode: computeExitCode(tools) }
+  return { project, tools, exitCode: computeExitCode(tools), error: null }
+}
+
+/** Report for a failure that pre-empts trying any individual tool (spec 7.5.1 error code 2). */
+export function projectSyncError(
+  message: string,
+  project: string | null = null,
+): ProjectSyncReport {
+  return { project, tools: [], exitCode: 2, error: message }
 }
