@@ -4,7 +4,7 @@ import {
   matchesPattern,
   parsePathExpression,
   PathParseError,
-} from './path.js'
+} from '../../merge-engine/path.js'
 
 describe('parsePathExpression', () => {
   it('parses a simple dot path', () => {

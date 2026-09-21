@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { assembleProjectReport, type ToolSyncAttempt } from './report.js'
-import type { PresetSnapshot, SyncResult } from './sync.js'
+import { assembleProjectReport, type ToolSyncAttempt } from '../../merge-engine/report.js'
+import type { PresetSnapshot, SyncResult } from '../../merge-engine/sync.js'
 
 const preset: PresetSnapshot = {
   name: 'vue-app',

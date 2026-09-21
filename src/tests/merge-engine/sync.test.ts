@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { jsonAdapter } from './json-adapter.js'
-import type { ManifestEntry } from './manifest.js'
-import { syncTool, type PresetSnapshot } from './sync.js'
+import { jsonAdapter } from '../../merge-engine/json-adapter.js'
+import type { ManifestEntry } from '../../merge-engine/manifest.js'
+import { syncTool, type PresetSnapshot } from '../../merge-engine/sync.js'
 
 const vueAppEslintPreset: PresetSnapshot = {
   name: 'vue-app',

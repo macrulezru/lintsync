@@ -4,7 +4,7 @@ import {
   parseManifest,
   serializeManifest,
   type Manifest,
-} from './manifest.js'
+} from '../../merge-engine/manifest.js'
 
 describe('manifest', () => {
   it('round-trips through serialize/parse', () => {

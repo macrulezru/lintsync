@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ConfigPath } from './path.js'
-import { NOT_FOUND, type ConfigAdapter, type JsonValue } from './types.js'
+import type { ConfigPath } from '../../merge-engine/path.js'
+import { NOT_FOUND, type ConfigAdapter, type JsonValue } from '../../merge-engine/types.js'
 
 /**
  * Real input/expected-output text fixtures for one adapter (spec section 12.3). Fixtures are

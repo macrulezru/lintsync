@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { jsonAdapter } from './json-adapter.js'
-import { parseManifest, serializeManifest, type Manifest } from './manifest.js'
-import { assembleProjectReport, type ToolSyncAttempt } from './report.js'
-import { syncTool, type PresetSnapshot } from './sync.js'
+import { jsonAdapter } from '../../merge-engine/json-adapter.js'
+import { parseManifest, serializeManifest, type Manifest } from '../../merge-engine/manifest.js'
+import { assembleProjectReport, type ToolSyncAttempt } from '../../merge-engine/report.js'
+import { syncTool, type PresetSnapshot } from '../../merge-engine/sync.js'
 
 /**
  * End-to-end test of the whole stage-3 pipeline (manifest -> syncTool -> report) against a

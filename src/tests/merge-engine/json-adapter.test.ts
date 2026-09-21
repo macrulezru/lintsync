@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { runConformanceSuite } from './adapter-conformance.js'
-import { jsonAdapter } from './json-adapter.js'
-import { NOT_FOUND } from './types.js'
+import { jsonAdapter } from '../../merge-engine/json-adapter.js'
+import { NOT_FOUND } from '../../merge-engine/types.js'
 
 const fixtureText = `{
   // base config

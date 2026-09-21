@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deepEqual } from './deep-equal.js'
+import { deepEqual } from '../../merge-engine/deep-equal.js'
 
 describe('deepEqual', () => {
   it('treats identical primitives as equal', () => {
