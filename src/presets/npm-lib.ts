@@ -14,8 +14,17 @@ const npmLibPreset: Preset = {
       // .mjs so the file is unambiguously ESM regardless of the target's package.json "type"
       // field (see vue-app.ts for the reasoning — verified against a real `eslint .` run).
       configFileName: 'eslint.config.mjs',
-      dependencies: ['eslint', 'typescript-eslint'],
+      dependencies: ['eslint', 'typescript-eslint', '@eslint/js'],
       baseExtends: [
+        // See base.ts for why this is needed: typescript-eslint's own `recommended` config only
+        // *disables* a subset of eslint:recommended's rules (assuming it's already applied), it
+        // doesn't replace it — real correctness rules with no TS-specific overlap were silently
+        // never enabled without this.
+        {
+          importPath: '@eslint/js',
+          importName: 'js',
+          expression: '[js.configs.recommended]',
+        },
         {
           importPath: 'typescript-eslint',
           importName: 'tseslint',

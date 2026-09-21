@@ -17,10 +17,14 @@ export interface PrettierOptionInfo {
 }
 
 /**
- * Options `getSupportInfo()` reports that don't belong in a `.prettierrc` — CLI-only or
- * filesystem-input concerns (which file to read, which plugins/parser to load, cursor/range
- * selection), not formatting choices. This filtering is this implementation's own judgment call,
- * not something Prettier itself flags.
+ * Options `getSupportInfo()` reports that don't belong in a `.prettierrc` — not formatting
+ * choices at all, but "which file/parser/plugin to run on" (`filepath`, `plugins`, `parser`) or
+ * "which part of one specific invocation to format" (`cursorOffset`, `rangeStart`, `rangeEnd`),
+ * neither of which makes sense as a static, shared preset value. This filtering is this
+ * implementation's own judgment call, not something Prettier itself flags — Prettier's own
+ * `category: 'Special'` grouping is broader than this list (it also covers `insertPragma`/
+ * `requirePragma`/`checkIgnorePragma`, which genuinely are ordinary, if niche, config-file
+ * options and are deliberately kept in the constructor rather than excluded here).
  */
 const EXCLUDED_OPTION_NAMES = new Set([
   'filepath',
@@ -29,9 +33,6 @@ const EXCLUDED_OPTION_NAMES = new Set([
   'cursorOffset',
   'rangeStart',
   'rangeEnd',
-  'insertPragma',
-  'requirePragma',
-  'checkIgnorePragma',
 ])
 
 function toChoices(option: SupportOption): PrettierOptionChoice[] | undefined {

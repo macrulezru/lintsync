@@ -10,11 +10,15 @@ import type { JsonValue } from '../merge-engine/types.js'
  * structured equivalent `presets/generate-config.ts` actually codegens from.
  */
 export interface EslintBaseExtend {
-  /** Module specifier to import, e.g. `'eslint-plugin-vue'`. */
-  importPath: string
+  /** Module specifier to import, e.g. `'eslint-plugin-vue'`. Omit (with `importName`) for an
+   *  entry that needs no import of its own — e.g. a plain `settings`/glue object, or one that
+   *  only references a binding another entry already imports (imports are always emitted
+   *  together at the top of the file, so order between entries doesn't matter for this). */
+  importPath?: string
   /** Local binding name for the default import. */
-  importName: string
-  /** JS expression (referencing importName) evaluating to a config array to spread in. */
+  importName?: string
+  /** JS expression evaluating to a config array to spread in — referencing `importName` if one
+   *  was given, or a plain array literal (`'[{ settings: {...} }]'`) if not. */
   expression: string
 }
 

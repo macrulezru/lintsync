@@ -19,7 +19,7 @@ describe('getPrettierOptions', () => {
     expect(printWidth).toMatchObject({ type: 'int', default: 80 })
   })
 
-  it('excludes CLI-only and path-type options', async () => {
+  it('excludes only the "which file/parser/plugin, which range" options', async () => {
     const options = await getPrettierOptions()
     const names = new Set(options.map((o) => o.name))
 
@@ -30,11 +30,17 @@ describe('getPrettierOptions', () => {
       'cursorOffset',
       'rangeStart',
       'rangeEnd',
-      'insertPragma',
-      'requirePragma',
-      'checkIgnorePragma',
     ]) {
       expect(names.has(excluded)).toBe(false)
+    }
+  })
+
+  it('keeps the niche-but-valid pragma options (Special category, but real config fields)', async () => {
+    const options = await getPrettierOptions()
+    const names = new Set(options.map((o) => o.name))
+
+    for (const included of ['insertPragma', 'requirePragma', 'checkIgnorePragma']) {
+      expect(names.has(included)).toBe(true)
     }
   })
 

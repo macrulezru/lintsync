@@ -24,9 +24,9 @@ function generateFlatEslintConfig(toolDef: PresetToolDefinition): string {
     throw new Error('generateFlatEslintConfig requires a flat-format tool definition')
   }
   const baseExtends = toolDef.baseExtends ?? []
-  const importLines = baseExtends.map(
-    (base) => `import ${base.importName} from '${base.importPath}'`,
-  )
+  const importLines = baseExtends
+    .filter((base) => base.importPath && base.importName)
+    .map((base) => `import ${base.importName} from '${base.importPath}'`)
   const spreadLines = baseExtends.map((base) => `  ...${base.expression},`)
 
   const importsBlock = importLines.length > 0 ? `${importLines.join('\n')}\n\n` : ''

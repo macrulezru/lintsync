@@ -28,6 +28,6 @@ describe('createPresetRegistry', () => {
   })
 
   it('exports the actual set of built-in names for reserved-name checks', () => {
-    expect(builtinPresetNames.sort()).toEqual(['base', 'npm-lib', 'vue-app'])
+    expect(builtinPresetNames.sort()).toEqual(['base', 'npm-lib', 'react-app', 'vue-app'])
   })
 })

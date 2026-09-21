@@ -21,6 +21,10 @@ const CURATED_PRESET_OPTIONS = [
     label: 'vue-app — Vue/Nuxt application (ESLint + Prettier + Stylelint)',
   },
   {
+    value: 'react-app',
+    label: 'react-app — React application (ESLint + Prettier + Stylelint)',
+  },
+  {
     value: 'npm-lib',
     label: 'npm-lib — library-style npm package (ESLint + Prettier)',
   },

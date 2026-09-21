@@ -15,13 +15,26 @@ const vueAppPreset: Preset = {
       // unambiguously ESM regardless (verified via a real `eslint .` run against a CJS-default
       // project; `.js` there still worked, but only after a "reparsing as ES module" warning).
       configFileName: 'eslint.config.mjs',
+      // Not @vue/eslint-config-typescript: its `withVueTs()` helper returns a Promise (async
+      // config composition via eslint-flat-config-utils) rather than a plain spreadable array,
+      // which our array-export codegen/adapter model can't represent. Verified with a real
+      // `eslint` run that the plain array-based fix below (matching vue-eslint-parser's own
+      // documented manual TypeScript setup) parses <script setup lang="ts"> generics and
+      // type-only syntax just as correctly, without needing that dependency at all.
       dependencies: [
         'eslint',
         'typescript-eslint',
         'eslint-plugin-vue',
-        '@vue/eslint-config-typescript',
+        '@eslint/js',
+        'vue-eslint-parser',
       ],
       baseExtends: [
+        // See base.ts for why this is needed.
+        {
+          importPath: '@eslint/js',
+          importName: 'js',
+          expression: '[js.configs.recommended]',
+        },
         {
           importPath: 'eslint-plugin-vue',
           importName: 'pluginVue',
@@ -31,6 +44,20 @@ const vueAppPreset: Preset = {
           importPath: 'typescript-eslint',
           importName: 'tseslint',
           expression: 'tseslint.configs.recommended',
+        },
+        // Without this, `<script setup lang="ts">` generics (e.g. `defineProps<Props>()`) fail
+        // to parse at all — verified with a real `eslint` run: vue-eslint-parser only parses the
+        // <script> block with TypeScript's own parser when explicitly told to (its own README's
+        // documented manual setup, reusing typescript-eslint's own `.parser` rather than a
+        // separate `@typescript-eslint/parser` import). `no-undef` is turned off for the same
+        // reason typescript-eslint's own `eslint-recommended` turns it off for .ts/.tsx: that
+        // config's file-matching doesn't cover .vue, so without this, real browser/Node globals
+        // (console, window, ...) would falsely trip `no-undef` inside .vue components.
+        {
+          importPath: 'vue-eslint-parser',
+          importName: 'vueParser',
+          expression:
+            "[{ files: ['**/*.vue'], languageOptions: { parser: vueParser, parserOptions: { parser: tseslint.parser } }, rules: { 'no-undef': 'off' } }]",
         },
       ],
       rules: {

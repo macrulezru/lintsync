@@ -16,8 +16,19 @@ const basePreset: Preset = {
     eslint: {
       configFormat: 'flat',
       configFileName: 'eslint.config.mjs',
-      dependencies: ['eslint', 'typescript-eslint'],
+      dependencies: ['eslint', 'typescript-eslint', '@eslint/js'],
       baseExtends: [
+        // typescript-eslint's own `recommended` config assumes this is already applied — it only
+        // *disables* the subset of these rules that TypeScript's compiler already catches better
+        // (no-undef, no-unreachable, etc.), not replace it. Without this, real correctness rules
+        // that don't overlap TS's own checks (no-fallthrough, no-empty, array-callback-return,
+        // ...) were silently never enabled at all. Found by comparing against lintsync's own
+        // real eslint.config.js, which does include this.
+        {
+          importPath: '@eslint/js',
+          importName: 'js',
+          expression: '[js.configs.recommended]',
+        },
         {
           importPath: 'typescript-eslint',
           importName: 'tseslint',

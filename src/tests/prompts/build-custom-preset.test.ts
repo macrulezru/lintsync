@@ -55,12 +55,12 @@ describe('buildCustomPreset', () => {
     })
   })
 
-  it('builds a Stylelint config from a chosen base config and toggled rules', async () => {
+  it('builds a Stylelint config from a chosen base config and a boolean rule', async () => {
     const prompts = fakePrompts([
       ['stylelint'], // tools multiselect
-      'stylelint-config-standard', // base config select
+      ['stylelint-config-standard'], // base configs multiselect
       ['no-empty-source'], // which rules to set explicitly
-      true, // turn no-empty-source on
+      true, // no-empty-source (boolean) -> confirm
       'my-stylelint', // name
     ])
     const preset = await buildCustomPreset(prompts)
@@ -77,8 +77,8 @@ describe('buildCustomPreset', () => {
   it('omits extendsPackages when no Stylelint base config is chosen', async () => {
     const prompts = fakePrompts([
       ['stylelint'],
-      'none', // base config select
-      [], // no rules toggled
+      [], // no base configs selected
+      [], // no rules selected
       'no-base-stylelint',
     ])
     const preset = await buildCustomPreset(prompts)
@@ -90,6 +90,52 @@ describe('buildCustomPreset', () => {
       managedKeys: ['rules.*'],
     })
     expect(preset?.tools.stylelint).not.toHaveProperty('extendsPackages')
+  })
+
+  it('extends multiple Stylelint base configs at once (e.g. SCSS + Vue together)', async () => {
+    const prompts = fakePrompts([
+      ['stylelint'],
+      ['stylelint-config-standard-scss', 'stylelint-config-recommended-vue'],
+      [],
+      'scss-vue-stylelint',
+    ])
+    const preset = await buildCustomPreset(prompts)
+    expect(preset?.tools.stylelint).toMatchObject({
+      dependencies: [
+        'stylelint',
+        'stylelint-config-standard-scss',
+        'stylelint-config-recommended-vue',
+      ],
+      extendsPackages: ['stylelint-config-standard-scss', 'stylelint-config-recommended-vue'],
+    })
+  })
+
+  it('builds choice/number/string Stylelint rule values and auto-adds stylelint-scss when scss/at-rule-no-unknown is on', async () => {
+    const prompts = fakePrompts([
+      ['stylelint'],
+      [], // no base configs
+      [
+        'color-hex-length',
+        'number-max-precision',
+        'selector-class-pattern',
+        'scss/at-rule-no-unknown',
+      ],
+      'short', // color-hex-length (choice) -> select
+      '3', // number-max-precision (number) -> text
+      '^[a-z]+$', // selector-class-pattern (string) -> text
+      true, // scss/at-rule-no-unknown (boolean) -> confirm
+      'multi-type-stylelint',
+    ])
+    const preset = await buildCustomPreset(prompts)
+    expect(preset?.tools.stylelint).toMatchObject({
+      dependencies: ['stylelint', 'stylelint-scss'],
+      rules: {
+        'color-hex-length': 'short',
+        'number-max-precision': 3,
+        'selector-class-pattern': '^[a-z]+$',
+        'scss/at-rule-no-unknown': true,
+      },
+    })
   })
 
   it('returns null when the tool selection is cancelled', async () => {

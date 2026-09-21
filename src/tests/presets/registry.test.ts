@@ -9,6 +9,13 @@ describe('builtinPresets', () => {
     expect(Object.keys(preset?.tools ?? {}).sort()).toEqual(['eslint', 'prettier', 'stylelint'])
   })
 
+  it('registers react-app with eslint, prettier and stylelint', () => {
+    const preset = builtinPresets.getPreset('react-app')
+    expect(preset).toBeDefined()
+    expect(preset?.version).toBe('0.1.0')
+    expect(Object.keys(preset?.tools ?? {}).sort()).toEqual(['eslint', 'prettier', 'stylelint'])
+  })
+
   it('registers npm-lib with eslint and prettier only (no stylelint, spec 11.2)', () => {
     const preset = builtinPresets.getPreset('npm-lib')
     expect(preset).toBeDefined()

@@ -1,5 +1,9 @@
 import { getPrettierOptions, type PrettierOptionInfo } from '../introspect/prettier-options.js'
-import { STYLELINT_BASE_CONFIGS, STYLELINT_RULES } from '../introspect/stylelint-known-values.js'
+import {
+  STYLELINT_BASE_CONFIGS,
+  STYLELINT_RULES,
+  type StylelintRuleInfo,
+} from '../introspect/stylelint-known-values.js'
 import type { JsonValue } from '../merge-engine/types.js'
 import basePreset from '../presets/base.js'
 import type { Preset, PresetToolDefinition } from '../presets/types.js'
@@ -66,6 +70,65 @@ async function buildPrettierRules(
   return rules
 }
 
+/**
+ * Mirrors buildPrettierRules' per-type interaction (confirm for boolean, select for choice, text
+ * for number/string) — the same UX, just driven by the hand-curated STYLELINT_RULES catalog
+ * instead of a live API. A boolean rule's "off" answer writes `null` (Stylelint's own way to
+ * disable a rule a base config already turned on) rather than being left unset, since the whole
+ * point of touching a boolean rule here is to make an explicit choice about it either way.
+ */
+async function buildStylelintRuleValues(
+  prompts: InitPromptsApi,
+  rules: StylelintRuleInfo[],
+): Promise<Record<string, JsonValue> | null> {
+  const selected = await prompts.multiselect({
+    message: 'Stylelint: which rules do you want to set explicitly?',
+    options: rules.map((rule) => ({ value: rule.name, label: rule.name, hint: rule.description })),
+    required: false,
+  })
+  if (prompts.isCancel(selected)) {
+    return null
+  }
+
+  const result: Record<string, JsonValue> = {}
+  for (const name of selected as string[]) {
+    const rule = rules.find((candidate) => candidate.name === name)
+    if (!rule) {
+      continue
+    }
+
+    if (rule.type === 'boolean') {
+      const on = await prompts.confirm({
+        message: `${rule.name}: ${rule.description}`,
+        initialValue: Boolean(rule.recommended),
+      })
+      if (prompts.isCancel(on)) {
+        return null
+      }
+      result[rule.name] = on ? true : null
+    } else if (rule.type === 'choice' && rule.choices) {
+      const value = await prompts.select({
+        message: `${rule.name}: ${rule.description}`,
+        options: rule.choices.map((choice) => ({ value: choice.value, label: choice.value })),
+      })
+      if (prompts.isCancel(value)) {
+        return null
+      }
+      result[rule.name] = String(value)
+    } else {
+      const value = await prompts.text({
+        message: `${rule.name}: ${rule.description}`,
+        placeholder: String(rule.recommended),
+      })
+      if (prompts.isCancel(value)) {
+        return null
+      }
+      result[rule.name] = rule.type === 'number' ? Number(value) : value
+    }
+  }
+  return result
+}
+
 interface StylelintBuildResult {
   rules: Record<string, JsonValue>
   extendsPackages: string[]
@@ -73,49 +136,31 @@ interface StylelintBuildResult {
 }
 
 async function buildStylelintConfig(prompts: InitPromptsApi): Promise<StylelintBuildResult | null> {
-  const baseChoice = await prompts.select({
-    message: 'Stylelint: extend a base config?',
-    options: [
-      { value: 'none', label: 'None — start from an empty config' },
-      ...STYLELINT_BASE_CONFIGS.map((config) => ({
-        value: config.package,
-        label: config.package,
-        hint: config.description,
-      })),
-    ],
-  })
-  if (prompts.isCancel(baseChoice)) {
-    return null
-  }
-  const extendsPackages = baseChoice === 'none' ? [] : [String(baseChoice)]
-
-  const toggled = await prompts.multiselect({
-    message: 'Stylelint: which rules do you want to set explicitly?',
-    options: STYLELINT_RULES.map((rule) => ({
-      value: rule.name,
-      label: rule.name,
-      hint: rule.description,
+  const baseChoices = await prompts.multiselect({
+    message: 'Stylelint: extend base config(s)? (pick as many as apply, e.g. SCSS + Vue together)',
+    options: STYLELINT_BASE_CONFIGS.map((config) => ({
+      value: config.package,
+      label: config.package,
+      hint: config.description,
     })),
     required: false,
   })
-  if (prompts.isCancel(toggled)) {
+  if (prompts.isCancel(baseChoices)) {
+    return null
+  }
+  const extendsPackages = baseChoices as string[]
+
+  const rules = await buildStylelintRuleValues(prompts, STYLELINT_RULES)
+  if (rules === null) {
     return null
   }
 
-  const rules: Record<string, JsonValue> = {}
-  for (const name of toggled as string[]) {
-    const rule = STYLELINT_RULES.find((candidate) => candidate.name === name)
-    if (!rule) {
-      continue
-    }
-    const on = await prompts.confirm({ message: `${name}: turn this rule on?`, initialValue: true })
-    if (prompts.isCancel(on)) {
-      return null
-    }
-    rules[name] = on ? rule.onValue : rule.offValue
+  const dependencySet = new Set(['stylelint', ...extendsPackages])
+  if ('scss/at-rule-no-unknown' in rules && rules['scss/at-rule-no-unknown'] === true) {
+    dependencySet.add('stylelint-scss')
   }
 
-  return { rules, extendsPackages, dependencies: ['stylelint', ...extendsPackages] }
+  return { rules, extendsPackages, dependencies: [...dependencySet] }
 }
 
 async function promptPresetName(

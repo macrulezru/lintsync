@@ -34,7 +34,7 @@ lintsync sync --yes    # apply the safe changes; conflicts stop and ask (interac
 
 ## How it works
 
-- A **preset** (`vue-app` or `npm-lib` today) is a built-in bundle of rules per tool, plus the list of dependencies to install and the keys it considers its own (`managedKeys`).
+- A **preset** (`vue-app`, `react-app`, or `npm-lib` today) is a built-in bundle of rules per tool, plus the list of dependencies to install and the keys it considers its own (`managedKeys`).
 - `lintsync init` installs those dependencies, writes each tool's config file from the preset, and records a **manifest** entry per tool at `.lintsync/manifest.json` — commit this file.
 - The manifest is not a source of truth; it's a record of "what the preset last applied." Every `sync`/`status` run re-reads your actual config file and compares it against both the manifest and the current preset:
   - File matches the manifest (you haven't touched the key) → quietly update it to the preset's current value.
@@ -62,9 +62,9 @@ lintsync init                           # no --preset in a real terminal: prompt
 - Dependencies are installed via whatever package manager the project already uses (detected from lockfiles), as ordinary `devDependencies` — lintsync never edits `package.json`'s dependency lists by hand.
 - `--preset <name>` resolves against both the 3 built-in presets and any presets you've saved locally (see [`presets`](#lintsync-presets-listremove) below) — same name, same behavior either way.
 - Run with no `--preset` in a real terminal, `init` prompts with three options:
-  - **Use a built-in or saved preset** — pick from `vue-app`/`npm-lib` plus anything you've saved locally.
+  - **Use a built-in or saved preset** — pick from `vue-app`/`react-app`/`npm-lib` plus anything you've saved locally.
   - **Pick tools individually (generic defaults)** — checkboxes for ESLint/Prettier/Stylelint, using the `base` preset's values as-is (see [Presets](#presets)).
-  - **Build and save a new custom preset** — an interactive constructor: pick which tools to include (ESLint, if included, reuses `base`'s generic block verbatim — no per-rule editor for it); for Prettier, pick which of its own options to set from its live option list (from Prettier's own `getSupportInfo()` API) and set each one (checkbox for booleans, a list of the real valid values for choice options, free text for numbers/strings); for Stylelint, optionally extend a base config and toggle a short hand-curated list of common rules (Stylelint has no equivalent live-schema API, unlike Prettier). You're then asked to name the preset — it's saved to the local presets store (see [Global config and storage](#global-config-and-storage)) and appears in the preset list from then on, in every project.
+  - **Build and save a new custom preset** — an interactive constructor: pick which tools to include (ESLint, if included, reuses `base`'s generic block verbatim — no per-rule editor for it); for Prettier, pick which of its own options to set from its live option list (from Prettier's own `getSupportInfo()` API) and set each one (checkbox for booleans, a list of the real valid values for choice options, free text for numbers/strings); for Stylelint, pick as many base configs to extend as apply (e.g. SCSS _and_ Vue together) and set values for any of ~80 rules pulled from Stylelint's own `-recommended`/`-standard` configs — booleans as checkboxes, choice-type rules from their real, source-verified value lists, patterns/numbers as free text (Stylelint has no live-schema API like Prettier's, so this list is hand-curated from those two official config packages rather than guessed). You're then asked to name the preset — it's saved to the local presets store (see [Global config and storage](#global-config-and-storage)) and appears in the preset list from then on, in every project.
 
   In CI (no TTY) or with `--json`, `--preset` is required and missing it is an error instead. Either way, if a config already exists, the interactive flow asks to overwrite it (y/n) rather than silently skipping — `--force` still skips that question.
 
@@ -227,13 +227,16 @@ The same table applies to `sync`, `status`, `init`, `get`, `set`, `unset`, and `
 
 ## Presets
 
-Three built-in presets ship today; presets live inside lintsync itself, never as separate npm packages, so `npm update lintsync` is how you get preset updates.
+Four built-in presets ship today; presets live inside lintsync itself, never as separate npm packages, so `npm update lintsync` is how you get preset updates.
 
-- **`vue-app`** — ESLint (flat config + `eslint-plugin-vue` + `typescript-eslint`) + Prettier + Stylelint, for Vue/Nuxt applications.
-- **`npm-lib`** — ESLint (flat config + `typescript-eslint`) + Prettier, for library-style npm packages with no CSS. Stricter unused-code/`any` rules than `base`, since mistakes in published library code are more expensive.
-- **`base`** — ESLint + Prettier + Stylelint with mild, generic defaults, not tied to any stack. This is what interactive `init`'s "pick tools individually" path uses.
+- **`vue-app`** — ESLint (flat config + `@eslint/js` + `eslint-plugin-vue` + `typescript-eslint`, with `<script lang="ts">` in `.vue` files wired to TypeScript's own parser) + Prettier + Stylelint, for Vue/Nuxt applications.
+- **`react-app`** — ESLint (flat config + `@eslint/js` + `eslint-plugin-react` + `eslint-plugin-react-hooks` + `typescript-eslint`) + Prettier + Stylelint, for React applications. `eslint`/`@eslint/js` are pinned to `^9` here specifically, because `eslint-plugin-react` hasn't published ESLint 10 support yet.
+- **`npm-lib`** — ESLint (flat config + `@eslint/js` + `typescript-eslint`) + Prettier, for library-style npm packages with no CSS. Stricter unused-code/`any` rules than `base`, since mistakes in published library code are more expensive.
+- **`base`** — ESLint (flat config + `@eslint/js` + `typescript-eslint`) + Prettier + Stylelint with mild, generic defaults, not tied to any stack. This is what interactive `init`'s "pick tools individually" path uses.
 
-All three use the same base style: no semicolons, single quotes, `trailingComma: 'all'`, `printWidth: 100`, `tabWidth: 2`.
+All four include `@eslint/js`'s own `recommended` config alongside `typescript-eslint`'s — `typescript-eslint`'s `recommended` config only _disables_ the subset of `@eslint/js`'s rules that TypeScript's compiler already checks better, it doesn't replace them, so real correctness rules with no TS-specific overlap (`no-fallthrough`, `no-empty`, `array-callback-return`, ...) need `@eslint/js` present too. `vue-app` additionally wires `<script lang="ts">` blocks in `.vue` files to TypeScript's parser directly (not via `@vue/eslint-config-typescript`, whose `withVueTs()` helper returns a Promise rather than a plain config array) — without it, generic syntax like `defineProps<Props>()` fails to parse at all.
+
+All four use the same base style: no semicolons, single quotes, `trailingComma: 'all'`, `printWidth: 100`, `tabWidth: 2`.
 
 On top of these, you can build your own presets interactively (`init` → "Build and save a new custom preset") and save them locally — see [`presets`](#lintsync-presets-listremove) and [Global config and storage](#global-config-and-storage). They behave exactly like the built-in ones: same `--preset <name>` resolution, same preset-picker list, same manifest/sync behavior.
 
