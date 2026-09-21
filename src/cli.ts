@@ -1,10 +1,13 @@
 #!/usr/bin/env node
 import { resolve } from 'node:path'
 import { Command } from 'commander'
+import { runGet, runSet, runUnset } from './commands/edit.js'
 import { runInit } from './commands/init.js'
 import { runSync } from './commands/sync.js'
+import { renderGetResult, renderSetResult, renderUnsetResult } from './format/human-edit-report.js'
 import { renderHumanInitReport } from './format/human-init-report.js'
 import { renderHumanReport, type Verbosity } from './format/human-report.js'
+import { parsePathExpression, PathParseError } from './merge-engine/path.js'
 import { builtinPresets } from './presets/registry.js'
 import { getVersion } from './version.js'
 
@@ -122,5 +125,111 @@ program
       process.exitCode = report.exitCode
     },
   )
+
+program
+  .command('get')
+  .description('Read one config value: get <tool>.<field...>, e.g. eslint.rules.no-console')
+  .argument('<path>', 'bracket-notation path, tool name first, e.g. eslint.rules["no-console"]')
+  .option('--cwd <path>', 'project directory', process.cwd())
+  .option('--json', 'machine-readable output', false)
+  .option('--quiet', 'print only the exit code on error', false)
+  .action((pathArg: string, options: { cwd: string; json: boolean; quiet: boolean }) => {
+    let path
+    try {
+      path = parsePathExpression(pathArg)
+    } catch (cause) {
+      const message = cause instanceof PathParseError ? cause.message : String(cause)
+      console.log(options.json ? JSON.stringify({ error: message }) : `Ошибка: ${message}`)
+      process.exitCode = 2
+      return
+    }
+
+    const result = runGet(resolve(options.cwd), path)
+
+    if (options.json) {
+      console.log(JSON.stringify(result))
+    } else {
+      const text = renderGetResult(result, options.quiet ? 'quiet' : 'default')
+      if (text) {
+        console.log(text)
+      }
+    }
+
+    process.exitCode = result.exitCode
+  })
+
+program
+  .command('set')
+  .description('Write one config value: set <tool>.<field...> <value> (spec 4.3)')
+  .argument('<path>', 'bracket-notation path, tool name first, e.g. eslint.rules.no-console')
+  .argument('<value>', 'JSON if it parses as such (100, true, ["warn"]), else a literal string')
+  .option('--cwd <path>', 'project directory', process.cwd())
+  .option('--json', 'machine-readable output', false)
+  .option('--quiet', 'suppress output on success', false)
+  .action(
+    (
+      pathArg: string,
+      valueArg: string,
+      options: { cwd: string; json: boolean; quiet: boolean },
+    ) => {
+      let path
+      try {
+        path = parsePathExpression(pathArg)
+      } catch (cause) {
+        const message = cause instanceof PathParseError ? cause.message : String(cause)
+        console.log(options.json ? JSON.stringify({ error: message }) : `Ошибка: ${message}`)
+        process.exitCode = 2
+        return
+      }
+
+      const result = runSet(resolve(options.cwd), path, valueArg)
+
+      if (options.json) {
+        console.log(JSON.stringify(result))
+      } else {
+        const text = renderSetResult(result, options.quiet ? 'quiet' : 'default')
+        if (text) {
+          console.log(text)
+        }
+      }
+
+      process.exitCode = result.exitCode
+    },
+  )
+
+program
+  .command('unset')
+  .description('Remove one config field: unset <tool>.<field...> (spec 4.3)')
+  .argument(
+    '<path>',
+    'bracket-notation path, tool name first, e.g. stylelint.rules.color-no-invalid-hex',
+  )
+  .option('--cwd <path>', 'project directory', process.cwd())
+  .option('--json', 'machine-readable output', false)
+  .option('--quiet', 'suppress output on success', false)
+  .action((pathArg: string, options: { cwd: string; json: boolean; quiet: boolean }) => {
+    let path
+    try {
+      path = parsePathExpression(pathArg)
+    } catch (cause) {
+      const message = cause instanceof PathParseError ? cause.message : String(cause)
+      console.log(options.json ? JSON.stringify({ error: message }) : `Ошибка: ${message}`)
+      process.exitCode = 2
+      return
+    }
+
+    const result = runUnset(resolve(options.cwd), path)
+
+    if (options.json) {
+      console.log(JSON.stringify(result))
+    } else {
+      const text = renderUnsetResult(result, options.quiet ? 'quiet' : 'default')
+      if (text) {
+        console.log(text)
+      }
+    }
+
+    process.exitCode = result.exitCode
+  })
 
 program.parse(process.argv)
