@@ -170,7 +170,7 @@ describe('runInit (real filesystem, builtin presets)', () => {
         tool: 'prettier',
         configPath: '.prettierrc.json',
         status: 'skipped',
-        message: 'Config already exists (use --force to overwrite)',
+        message: 'Config already exists at .prettierrc.json (use --force to overwrite)',
       },
     ])
 
@@ -205,6 +205,59 @@ describe('runInit (real filesystem, builtin presets)', () => {
       printWidth: 100,
       tabWidth: 2,
     })
+  })
+
+  it('detects an existing eslint config under a different extension than the preset would use, instead of writing a second file', async () => {
+    // the preset's own configFileName is eslint.config.mjs; the project already has a plain
+    // .js one — a real bug found by dogfooding init on lintsync's own repo (spec 12.2 stage 12).
+    writeFileSync(join(projectDir, 'eslint.config.js'), 'export default { rules: {} }\n')
+    const { install } = fakeInstaller()
+
+    const report = await runInit({
+      cwd: projectDir,
+      presetName: 'npm-lib',
+      tool: 'eslint',
+      force: false,
+      presetRegistry: builtinPresets,
+      installDependencies: install,
+    })
+
+    expect(report.tools).toEqual([
+      {
+        tool: 'eslint',
+        configPath: 'eslint.config.js',
+        status: 'skipped',
+        message: 'Config already exists at eslint.config.js (use --force to overwrite)',
+      },
+    ])
+    // no second file was created
+    expect(() => readFileSync(join(projectDir, 'eslint.config.mjs'))).toThrow()
+    expect(readFileSync(join(projectDir, 'eslint.config.js'), 'utf8')).toBe(
+      'export default { rules: {} }\n',
+    )
+  })
+
+  it('with --force, overwrites the differently-named existing file rather than creating a new one', async () => {
+    writeFileSync(join(projectDir, 'eslint.config.js'), 'export default { rules: {} }\n')
+    const { install } = fakeInstaller()
+
+    const report = await runInit({
+      cwd: projectDir,
+      presetName: 'npm-lib',
+      tool: 'eslint',
+      force: true,
+      presetRegistry: builtinPresets,
+      installDependencies: install,
+    })
+
+    expect(report.tools[0]).toMatchObject({ status: 'created', configPath: 'eslint.config.js' })
+    expect(() => readFileSync(join(projectDir, 'eslint.config.mjs'))).toThrow()
+    expect(readFileSync(join(projectDir, 'eslint.config.js'), 'utf8')).toContain('no-console')
+
+    const manifest = parseManifest(
+      readFileSync(join(projectDir, '.lintsync', 'manifest.json'), 'utf8'),
+    )
+    expect(manifest.eslint?.configPath).toBe('eslint.config.js')
   })
 
   it('merges new tool entries into an existing manifest without disturbing others', async () => {

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { extname, join } from 'node:path'
 import { detect, type Agent } from 'package-manager-detector'
 import { resolveCommand } from 'package-manager-detector/commands'
 import { jsonAdapter } from '../merge-engine/json-adapter.js'
@@ -53,6 +53,34 @@ export interface ProjectInitReport {
 
 function toErrorMessage(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
+}
+
+// ESLint's own flat-config lookup checks exactly these extensions, in this order, for one
+// base name (spec 5/7.4.3's js/ts adapter covers all of them). Discovered by dogfooding stage
+// 9's init on lintsync's own repo: checking only the preset's exact filename let it write a
+// second, unused eslint.config.mjs right next to the project's real eslint.config.js instead of
+// recognizing the project was already configured.
+const JS_CONFIG_EXTENSIONS = ['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts']
+
+/**
+ * Finds a config file that already satisfies this tool, even if it's not spelled exactly like
+ * the preset's own `configFileName` — e.g. the project has `eslint.config.js` but the preset
+ * would otherwise write `eslint.config.mjs`. Only JS-family configs have this ambiguity in the
+ * MVP presets (spec 11): Prettier/Stylelint's JSON filenames are single, fixed names.
+ */
+function findExistingConfigPath(cwd: string, configFileName: string): string | undefined {
+  const ext = extname(configFileName)
+  if (!JS_CONFIG_EXTENSIONS.includes(ext)) {
+    return existsSync(join(cwd, configFileName)) ? configFileName : undefined
+  }
+  const base = configFileName.slice(0, -ext.length)
+  for (const candidateExt of JS_CONFIG_EXTENSIONS) {
+    const candidate = `${base}${candidateExt}`
+    if (existsSync(join(cwd, candidate))) {
+      return candidate
+    }
+  }
+  return undefined
 }
 
 function errorReport(message: string): ProjectInitReport {
@@ -135,24 +163,32 @@ export async function runInit(options: RunInitOptions): Promise<ProjectInitRepor
       continue
     }
 
-    const configAbsPath = join(options.cwd, toolDef.configFileName)
-    if (existsSync(configAbsPath) && !options.force) {
+    // Check every conventional filename this tool's config could already live under, not just
+    // the preset's own — otherwise "already configured" goes undetected and init writes a
+    // second, differently-named file the tool never actually reads (see JS_CONFIG_EXTENSIONS).
+    const existingConfigPath = findExistingConfigPath(options.cwd, toolDef.configFileName)
+    if (existingConfigPath && !options.force) {
       toolReports.push({
         tool: toolName,
-        configPath: toolDef.configFileName,
+        configPath: existingConfigPath,
         status: 'skipped',
-        message: 'Config already exists (use --force to overwrite)',
+        message: `Config already exists at ${existingConfigPath} (use --force to overwrite)`,
       })
       continue
     }
 
-    const adapter = pickAdapter(toolDef.configFileName)
+    // With --force, overwrite whatever file already establishes this tool's config (even if
+    // differently named than the preset's default) rather than creating yet another one.
+    const targetConfigPath = existingConfigPath ?? toolDef.configFileName
+    const configAbsPath = join(options.cwd, targetConfigPath)
+
+    const adapter = pickAdapter(targetConfigPath)
     if (!adapter) {
       toolReports.push({
         tool: toolName,
-        configPath: toolDef.configFileName,
+        configPath: targetConfigPath,
         status: 'error',
-        message: `Unsupported config format for "${toolDef.configFileName}"`,
+        message: `Unsupported config format for "${targetConfigPath}"`,
       })
       sawError = true
       continue
@@ -165,7 +201,7 @@ export async function runInit(options: RunInitOptions): Promise<ProjectInitRepor
     } catch (cause) {
       toolReports.push({
         tool: toolName,
-        configPath: toolDef.configFileName,
+        configPath: targetConfigPath,
         status: 'error',
         message: toErrorMessage(cause),
       })
@@ -184,7 +220,7 @@ export async function runInit(options: RunInitOptions): Promise<ProjectInitRepor
       dryRun: true,
     })
     manifestUpdates[toolName] = {
-      configPath: toolDef.configFileName,
+      configPath: targetConfigPath,
       managed: planted.updatedManaged,
     }
 
@@ -193,7 +229,7 @@ export async function runInit(options: RunInitOptions): Promise<ProjectInitRepor
     }
     toolReports.push({
       tool: toolName,
-      configPath: toolDef.configFileName,
+      configPath: targetConfigPath,
       status: 'created',
       message: null,
     })
