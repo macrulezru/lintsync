@@ -28,7 +28,7 @@ program
   .option('--quiet', 'suppress output on success', false)
   .option('--verbose', 'show extra detail for changes and conflicts', false)
   .action(
-    (options: {
+    async (options: {
       cwd: string
       tool?: string
       dryRun: boolean
@@ -37,10 +37,17 @@ program
       quiet: boolean
       verbose: boolean
     }) => {
-      const report = runSync({
+      // TUI only when there's a real terminal to draw it in and machine output wasn't
+      // requested (spec 4.5/12.2 stage 8) — piping/CI/`--json` always take the non-interactive
+      // path regardless of TTY-ness.
+      const interactive =
+        !options.json && Boolean(process.stdin.isTTY) && Boolean(process.stdout.isTTY)
+
+      const report = await runSync({
         cwd: resolve(options.cwd),
         dryRun: options.dryRun,
         yes: options.yes,
+        interactive,
         presetRegistry: builtinPresets,
         ...(options.tool ? { tool: options.tool } : {}),
       })

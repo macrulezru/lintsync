@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runSync } from '../../commands/sync.js'
 import { parseManifest, serializeManifest, type Manifest } from '../../merge-engine/manifest.js'
 import type { Preset, PresetRegistry } from '../../presets/types.js'
+import type { ConflictItem, Resolution } from '../../tui/types.js'
 
 /**
  * A real "fixture project" on disk (spec 12.2 stage 4 exit criterion), not the built-in
@@ -42,15 +43,34 @@ function initProject(manifest: Manifest, files: Record<string, string>): void {
   }
 }
 
+/** Resolves every conflict it's handed by always picking accept-preset — a stand-in for a user
+ *  driving the real TUI, without needing to drive an actual terminal in these tests (that's
+ *  covered separately by ConflictResolver.test.tsx). */
+function acceptPresetResolver(conflicts: ConflictItem[]): Promise<Resolution[]> {
+  return Promise.resolve(
+    conflicts.map((conflict) => ({
+      path: conflict.path,
+      choice: 'accept-preset',
+      value: conflict.presetValue,
+    })),
+  )
+}
+
 describe('runSync (real filesystem, JSON adapter)', () => {
-  it('reports an exitCode-2 error when there is no .lintsync/manifest.json', () => {
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: false, presetRegistry })
+  it('reports an exitCode-2 error when there is no .lintsync/manifest.json', async () => {
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: false,
+      interactive: false,
+      presetRegistry,
+    })
     expect(report.exitCode).toBe(2)
     expect(report.tools).toEqual([])
     expect(report.error).toMatch(/No manifest found/)
   })
 
-  it('previews a change with --dry-run without writing the file', () => {
+  it('previews a change with --dry-run without writing the file', async () => {
     initProject(
       {
         eslint: {
@@ -63,7 +83,13 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "off"\n  }\n}\n' },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: true, yes: false, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: true,
+      yes: false,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(0)
     expect(report.tools[0]?.status).toBe('would-update')
@@ -78,7 +104,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     expect(fileOnDisk).toContain('"no-console": "off"')
   })
 
-  it('does not write without --yes even when there is no conflict (no TUI/confirmation yet)', () => {
+  it('does not write without --yes even when there is no conflict (no confirmation prompt for safe changes)', async () => {
     initProject(
       {
         eslint: {
@@ -91,7 +117,13 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "off"\n  }\n}\n' },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: false, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: false,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(0)
     expect(report.tools[0]?.status).toBe('would-update')
@@ -99,7 +131,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     expect(fileOnDisk).toContain('"no-console": "off"')
   })
 
-  it('applies the change and updates the manifest with --yes', () => {
+  it('applies the change and updates the manifest with --yes', async () => {
     initProject(
       {
         eslint: {
@@ -118,7 +150,13 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(0)
     expect(report.tools[0]?.status).toBe('updated')
@@ -138,7 +176,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     })
   })
 
-  it('reports a conflict and leaves the file and manifest untouched even with --yes', () => {
+  it('reports a conflict and leaves the file and manifest untouched when non-interactive, even with --yes', async () => {
     initProject(
       {
         eslint: {
@@ -152,7 +190,13 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "error"\n  }\n}\n' },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(1)
     expect(report.tools[0]?.status).toBe('conflict')
@@ -167,7 +211,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     })
   })
 
-  it('reports a per-tool error for an unregistered preset without crashing', () => {
+  it('reports a per-tool error for an unregistered preset without crashing', async () => {
     initProject(
       {
         eslint: {
@@ -180,7 +224,13 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       { 'eslint.config.json': '{}' },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(2)
     expect(report.tools[0]).toMatchObject({
@@ -189,7 +239,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     })
   })
 
-  it('reports a per-tool error when the config file itself is missing', () => {
+  it('reports a per-tool error when the config file itself is missing', async () => {
     initProject(
       {
         eslint: {
@@ -202,7 +252,13 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       {},
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(2)
     expect(report.tools[0]).toMatchObject({
@@ -211,7 +267,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     })
   })
 
-  it('restricts to a single tool with --tool', () => {
+  it('restricts to a single tool with --tool', async () => {
     initProject(
       {
         eslint: {
@@ -233,10 +289,11 @@ describe('runSync (real filesystem, JSON adapter)', () => {
       },
     )
 
-    const report = runSync({
+    const report = await runSync({
       cwd: projectDir,
       dryRun: true,
       yes: false,
+      interactive: false,
       tool: 'eslint',
       presetRegistry,
     })
@@ -245,7 +302,7 @@ describe('runSync (real filesystem, JSON adapter)', () => {
     expect(report.tools[0]?.tool).toBe('eslint')
   })
 
-  it('applies a change to a real .yaml config file, preserving comments', () => {
+  it('applies a change to a real .yaml config file, preserving comments', async () => {
     initProject(
       {
         eslint: {
@@ -264,7 +321,13 @@ rules:
       },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(0)
     expect(report.tools[0]?.status).toBe('updated')
@@ -277,7 +340,7 @@ rules:
 `)
   })
 
-  it('applies a change to a real flat-config .js file, preserving comments', () => {
+  it('applies a change to a real flat-config .js file, preserving comments', async () => {
     initProject(
       {
         eslint: {
@@ -299,7 +362,13 @@ export default {
       },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(0)
     expect(report.tools[0]?.status).toBe('updated')
@@ -315,7 +384,7 @@ export default {
 `)
   })
 
-  it('reports a per-tool error instead of crashing when a .js config value is a dynamic expression', () => {
+  it('reports a per-tool error instead of crashing when a .js config value is a dynamic expression', async () => {
     initProject(
       {
         eslint: {
@@ -335,7 +404,13 @@ export default {
       },
     )
 
-    const report = runSync({ cwd: projectDir, dryRun: false, yes: true, presetRegistry })
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: false,
+      presetRegistry,
+    })
 
     expect(report.exitCode).toBe(2)
     expect(report.tools[0]).toMatchObject({
@@ -346,5 +421,221 @@ export default {
     // the file must be left completely untouched
     const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.js'), 'utf8')
     expect(fileOnDisk).toContain('someImportedVar')
+  })
+})
+
+describe('runSync (interactive conflict resolution, spec stage 8)', () => {
+  it('never invokes the resolver when interactive is false, even with a conflict', async () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.json',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "error"\n  }\n}\n' },
+    )
+
+    let called = false
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: false,
+      interactive: false,
+      presetRegistry,
+      resolveConflicts: async (conflicts) => {
+        called = true
+        return acceptPresetResolver(conflicts)
+      },
+    })
+
+    expect(called).toBe(false)
+    expect(report.tools[0]?.status).toBe('conflict')
+  })
+
+  it('never invokes the resolver when --yes is set, even if interactive is true', async () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.json',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "error"\n  }\n}\n' },
+    )
+
+    let called = false
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: true,
+      interactive: true,
+      presetRegistry,
+      resolveConflicts: async (conflicts) => {
+        called = true
+        return acceptPresetResolver(conflicts)
+      },
+    })
+
+    expect(called).toBe(false)
+    expect(report.tools[0]?.status).toBe('conflict')
+  })
+
+  it('never invokes the resolver with --dry-run, even if interactive is true', async () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.json',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "error"\n  }\n}\n' },
+    )
+
+    let called = false
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: true,
+      yes: false,
+      interactive: true,
+      presetRegistry,
+      resolveConflicts: async (conflicts) => {
+        called = true
+        return acceptPresetResolver(conflicts)
+      },
+    })
+
+    expect(called).toBe(false)
+    expect(report.tools[0]?.status).toBe('conflict')
+  })
+
+  it('resolves a conflict interactively, applies it, and updates the manifest — full cycle', async () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.json',
+          managed: {
+            'rules.no-console': { presetValue: 'off', version: '1.0.0' },
+            'rules.no-debugger': { presetValue: 'error', version: '1.0.0' },
+          },
+        },
+      },
+      // 'no-console' conflicts (user set 'error', manifest says 'off', preset says 'warn');
+      // 'no-debugger' already matches the preset — clean, alongside the conflict.
+      {
+        'eslint.config.json':
+          '{\n  "rules": {\n    "no-console": "error",\n    "no-debugger": "error"\n  }\n}\n',
+      },
+    )
+
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: false,
+      interactive: true,
+      presetRegistry,
+      resolveConflicts: acceptPresetResolver,
+    })
+
+    expect(report.exitCode).toBe(0)
+    expect(report.tools[0]?.status).toBe('updated')
+    expect(report.tools[0]?.conflicts).toEqual([])
+
+    const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.json'), 'utf8')
+    expect(fileOnDisk).toBe(
+      '{\n  "rules": {\n    "no-console": "warn",\n    "no-debugger": "error"\n  }\n}\n',
+    )
+
+    const manifest = parseManifest(
+      readFileSync(join(projectDir, '.lintsync', 'manifest.json'), 'utf8'),
+    )
+    expect(manifest.eslint?.version).toBe('2.0.0')
+    expect(manifest.eslint?.managed['rules.no-console']).toEqual({
+      presetValue: 'warn',
+      version: '2.0.0',
+    })
+  })
+
+  it('applies a "keep local" resolution to the file, but still records the preset value in the manifest', async () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.json',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "error"\n  }\n}\n' },
+    )
+
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: false,
+      interactive: true,
+      presetRegistry,
+      resolveConflicts: (conflicts) =>
+        Promise.resolve(
+          conflicts.map((conflict) => ({
+            path: conflict.path,
+            choice: 'keep-local' as const,
+            value: conflict.fileValue,
+          })),
+        ),
+    })
+
+    expect(report.exitCode).toBe(0)
+    expect(report.tools[0]?.status).toBe('updated')
+
+    // the file keeps the user's value ('error'), unchanged
+    const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.json'), 'utf8')
+    expect(fileOnDisk).toContain('"no-console": "error"')
+
+    // but the manifest tracks the preset's own value, not the local override (spec 7.2 has no
+    // field for "intentionally diverges forever" — this key will conflict again next sync
+    // unless the file or the preset changes)
+    const manifest = parseManifest(
+      readFileSync(join(projectDir, '.lintsync', 'manifest.json'), 'utf8'),
+    )
+    expect(manifest.eslint?.managed['rules.no-console']).toEqual({
+      presetValue: 'warn',
+      version: '2.0.0',
+    })
+  })
+
+  it('leaves everything untouched if the resolver returns fewer resolutions than conflicts', async () => {
+    initProject(
+      {
+        eslint: {
+          preset: 'test-preset',
+          version: '1.0.0',
+          configPath: 'eslint.config.json',
+          managed: { 'rules.no-console': { presetValue: 'off', version: '1.0.0' } },
+        },
+      },
+      { 'eslint.config.json': '{\n  "rules": {\n    "no-console": "error"\n  }\n}\n' },
+    )
+
+    const report = await runSync({
+      cwd: projectDir,
+      dryRun: false,
+      yes: false,
+      interactive: true,
+      presetRegistry,
+      resolveConflicts: () => Promise.resolve([]), // e.g. the user quit out of the TUI early
+    })
+
+    expect(report.tools[0]?.status).toBe('conflict')
+    const fileOnDisk = readFileSync(join(projectDir, 'eslint.config.json'), 'utf8')
+    expect(fileOnDisk).toContain('"no-console": "error"')
   })
 })
