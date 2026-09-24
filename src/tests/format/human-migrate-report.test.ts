@@ -15,8 +15,8 @@ describe('renderHumanMigrateReport', () => {
     }
     const text = renderHumanMigrateReport(report, 'default')
     expect(text).toContain('✓ .eslintrc.json → eslint.config.mjs')
-    expect(text).toContain('перенесено: rules')
-    expect(text).toContain('требует ручной проверки: extends, env')
+    expect(text).toContain('migrated: rules')
+    expect(text).toContain('needs manual review: extends, env')
   })
 
   it('omits the review line when nothing needs manual review', () => {
@@ -29,7 +29,7 @@ describe('renderHumanMigrateReport', () => {
       exitCode: 0,
       error: null,
     }
-    expect(renderHumanMigrateReport(report, 'default')).not.toContain('требует ручной проверки')
+    expect(renderHumanMigrateReport(report, 'default')).not.toContain('needs manual review')
   })
 
   it('is silent in quiet mode on success', () => {
@@ -55,8 +55,6 @@ describe('renderHumanMigrateReport', () => {
       exitCode: 2,
       error: 'No existing eslint config found',
     }
-    expect(renderHumanMigrateReport(report, 'quiet')).toBe(
-      'Ошибка: No existing eslint config found',
-    )
+    expect(renderHumanMigrateReport(report, 'quiet')).toBe('Error: No existing eslint config found')
   })
 })

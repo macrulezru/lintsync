@@ -40,8 +40,8 @@ describe('renderGetResult', () => {
       exitCode: 2,
       error: 'Path not found: eslint.rules.nope',
     }
-    expect(renderGetResult(result, 'default')).toBe('Ошибка: Path not found: eslint.rules.nope')
-    expect(renderGetResult(result, 'quiet')).toBe('Код возврата: 2')
+    expect(renderGetResult(result, 'default')).toBe('Error: Path not found: eslint.rules.nope')
+    expect(renderGetResult(result, 'quiet')).toBe('Exit code: 2')
   })
 })
 
@@ -79,7 +79,7 @@ describe('renderSetResult', () => {
       exitCode: 2,
       error: 'boom',
     }
-    expect(renderSetResult(result, 'default')).toBe('Ошибка: boom')
+    expect(renderSetResult(result, 'default')).toBe('Error: boom')
   })
 })
 
@@ -93,7 +93,7 @@ describe('renderUnsetResult', () => {
       error: null,
     }
     expect(renderUnsetResult(result, 'default')).toBe(
-      '✓ удалено: stylelint.rules.color-no-invalid-hex',
+      '✓ removed: stylelint.rules.color-no-invalid-hex',
     )
   })
 

@@ -4,7 +4,7 @@ import type { Preset } from '../../presets/types.js'
 
 describe('renderPresetsList', () => {
   it('shows a message when there are no locally-saved presets', () => {
-    expect(renderPresetsList([])).toBe('Нет локально сохранённых пресетов.')
+    expect(renderPresetsList([])).toBe('No locally-saved presets.')
   })
 
   it('lists name, version and tools', () => {

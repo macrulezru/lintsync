@@ -1,7 +1,7 @@
 import { formatPathExpression } from '../merge-engine/path.js'
 import type { ProjectSyncReport, ToolSyncReport } from '../merge-engine/report.js'
 import type { SyncChange, SyncConflict } from '../merge-engine/sync.js'
-import { pluralizeRu } from './pluralize-ru.js'
+import { pluralize } from './pluralize.js'
 
 export type Verbosity = 'quiet' | 'default' | 'verbose'
 
@@ -12,7 +12,7 @@ function renderChange(change: SyncChange): string {
 }
 
 function renderConflictLine(conflict: SyncConflict): string {
-  return `${formatPathExpression(conflict.path)} (локально: ${formatValue(conflict.fileValue)}, эталон: ${formatValue(conflict.presetValue)})`
+  return `${formatPathExpression(conflict.path)} (local: ${formatValue(conflict.fileValue)}, preset: ${formatValue(conflict.presetValue)})`
 }
 
 function renderTool(tool: ToolSyncReport, verbosity: Verbosity): string[] {
@@ -21,18 +21,18 @@ function renderTool(tool: ToolSyncReport, verbosity: Verbosity): string[] {
   ]
 
   if (tool.status === 'error') {
-    lines.push(`  ✗ ошибка: ${tool.error}`)
+    lines.push(`  ✗ error: ${tool.error}`)
     return lines
   }
 
   if (tool.status === 'clean') {
-    lines.push('  ✓ актуален')
+    lines.push('  ✓ up to date')
     return lines
   }
 
   if (tool.changes.length > 0) {
-    const word = pluralizeRu(tool.changes.length, 'ключ', 'ключа', 'ключей')
-    const verb = tool.status === 'updated' ? 'обновлено' : 'будет обновлено'
+    const word = pluralize(tool.changes.length, 'key', 'keys')
+    const verb = tool.status === 'updated' ? 'updated' : 'would be updated'
     lines.push(`  ↻ ${tool.changes.length} ${word} ${verb}`)
     if (verbosity === 'verbose') {
       for (const change of tool.changes) {
@@ -44,12 +44,12 @@ function renderTool(tool: ToolSyncReport, verbosity: Verbosity): string[] {
   }
 
   if (tool.conflicts.length > 0) {
-    const word = pluralizeRu(tool.conflicts.length, 'конфликт', 'конфликта', 'конфликтов')
+    const word = pluralize(tool.conflicts.length, 'conflict', 'conflicts')
     lines.push(`  ✗ ${tool.conflicts.length} ${word}:`)
     for (const conflict of tool.conflicts) {
       lines.push(`      ${renderConflictLine(conflict)}`)
       if (verbosity === 'verbose') {
-        lines.push(`        манифест: ${formatValue(conflict.manifestValue)}`)
+        lines.push(`        manifest: ${formatValue(conflict.manifestValue)}`)
       }
     }
   }
@@ -63,7 +63,7 @@ function renderTool(tool: ToolSyncReport, verbosity: Verbosity): string[] {
  */
 export function renderHumanReport(report: ProjectSyncReport, verbosity: Verbosity): string {
   if (report.error) {
-    return `Ошибка: ${report.error}`
+    return `Error: ${report.error}`
   }
 
   if (verbosity === 'quiet') {
@@ -79,7 +79,7 @@ export function renderHumanReport(report: ProjectSyncReport, verbosity: Verbosit
         lines.push(`${tool.tool}: ${formatPathExpression(conflict.path)}`)
       }
     }
-    lines.push(`Код возврата: ${report.exitCode}`)
+    lines.push(`Exit code: ${report.exitCode}`)
     return lines.join('\n')
   }
 
@@ -91,18 +91,14 @@ export function renderHumanReport(report: ProjectSyncReport, verbosity: Verbosit
   const totalConflicts = report.tools.reduce((sum, tool) => sum + tool.conflicts.length, 0)
   const totalErrors = report.tools.filter((tool) => tool.status === 'error').length
 
-  const summaryParts = [
-    `${report.tools.length} ${pluralizeRu(report.tools.length, 'инструмент', 'инструмента', 'инструментов')}`,
-  ]
+  const summaryParts = [`${report.tools.length} ${pluralize(report.tools.length, 'tool', 'tools')}`]
   if (totalConflicts > 0) {
-    summaryParts.push(
-      `${totalConflicts} ${pluralizeRu(totalConflicts, 'конфликт', 'конфликта', 'конфликтов')}`,
-    )
+    summaryParts.push(`${totalConflicts} ${pluralize(totalConflicts, 'conflict', 'conflicts')}`)
   }
   if (totalErrors > 0) {
-    summaryParts.push(`${totalErrors} ${pluralizeRu(totalErrors, 'ошибка', 'ошибки', 'ошибок')}`)
+    summaryParts.push(`${totalErrors} ${pluralize(totalErrors, 'error', 'errors')}`)
   }
-  lines.push(`Итого: ${summaryParts.join(', ')}. Код возврата: ${report.exitCode}`)
+  lines.push(`Total: ${summaryParts.join(', ')}. Exit code: ${report.exitCode}`)
 
   return lines.join('\n').trimEnd()
 }

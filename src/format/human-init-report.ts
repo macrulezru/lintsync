@@ -1,6 +1,6 @@
 import type { InitToolReport, ProjectInitReport } from '../commands/init.js'
 import type { Verbosity } from './human-report.js'
-import { pluralizeRu } from './pluralize-ru.js'
+import { pluralize } from './pluralize.js'
 
 const STATUS_ICON: Record<InitToolReport['status'], string> = {
   created: '✓',
@@ -9,9 +9,9 @@ const STATUS_ICON: Record<InitToolReport['status'], string> = {
 }
 
 const STATUS_LABEL: Record<InitToolReport['status'], string> = {
-  created: 'создан',
-  skipped: 'пропущен',
-  error: 'ошибка',
+  created: 'created',
+  skipped: 'skipped',
+  error: 'error',
 }
 
 function renderTool(tool: InitToolReport): string {
@@ -23,7 +23,7 @@ function renderTool(tool: InitToolReport): string {
  *  (spec 7.5.2) for a consistent CLI feel even though `init` has its own report shape. */
 export function renderHumanInitReport(report: ProjectInitReport, verbosity: Verbosity): string {
   if (report.error) {
-    return `Ошибка: ${report.error}`
+    return `Error: ${report.error}`
   }
 
   if (verbosity === 'quiet') {
@@ -33,7 +33,7 @@ export function renderHumanInitReport(report: ProjectInitReport, verbosity: Verb
     const lines = report.tools
       .filter((tool) => tool.status === 'error')
       .map((tool) => `${tool.tool}: ${tool.message}`)
-    lines.push(`Код возврата: ${report.exitCode}`)
+    lines.push(`Exit code: ${report.exitCode}`)
     return lines.join('\n')
   }
 
@@ -43,27 +43,28 @@ export function renderHumanInitReport(report: ProjectInitReport, verbosity: Verb
   }
 
   if (report.dependenciesInstalled.length > 0) {
+    const word = pluralize(report.dependenciesInstalled.length, 'package', 'packages')
     lines.push(
-      `  ${pluralizeRu(report.dependenciesInstalled.length, 'пакет установлен', 'пакета установлено', 'пакетов установлено')}: ${report.dependenciesInstalled.join(', ')}`,
+      `  ${report.dependenciesInstalled.length} ${word} installed: ${report.dependenciesInstalled.join(', ')}`,
     )
   }
   if (report.scriptsUpdated.length > 0) {
-    lines.push(`  npm-скрипты обновлены: ${report.scriptsUpdated.join(', ')}`)
+    lines.push(`  npm scripts updated: ${report.scriptsUpdated.join(', ')}`)
   }
 
   const created = report.tools.filter((tool) => tool.status === 'created').length
   const skipped = report.tools.filter((tool) => tool.status === 'skipped').length
   const errored = report.tools.filter((tool) => tool.status === 'error').length
 
-  const summaryParts = [`${created} ${pluralizeRu(created, 'создан', 'создано', 'создано')}`]
+  const summaryParts = [`${created} created`]
   if (skipped > 0) {
-    summaryParts.push(`${skipped} ${pluralizeRu(skipped, 'пропущен', 'пропущено', 'пропущено')}`)
+    summaryParts.push(`${skipped} skipped`)
   }
   if (errored > 0) {
-    summaryParts.push(`${errored} ${pluralizeRu(errored, 'ошибка', 'ошибки', 'ошибок')}`)
+    summaryParts.push(`${errored} ${pluralize(errored, 'error', 'errors')}`)
   }
   lines.push('')
-  lines.push(`Итого: ${summaryParts.join(', ')}. Код возврата: ${report.exitCode}`)
+  lines.push(`Total: ${summaryParts.join(', ')}. Exit code: ${report.exitCode}`)
 
   return lines.join('\n').trimEnd()
 }

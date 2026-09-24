@@ -2,7 +2,7 @@ import type { ProjectEntry } from '../registry/types.js'
 
 export function renderProjectsList(projects: ProjectEntry[]): string {
   if (projects.length === 0) {
-    return 'Нет зарегистрированных проектов.'
+    return 'No registered projects.'
   }
   return projects
     .map((project) => {

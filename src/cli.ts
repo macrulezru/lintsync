@@ -107,8 +107,8 @@ function formatCommandsHelp(commands: readonly Command[]): string {
 // here by hand, before any command-specific parsing, rather than threaded through every
 // command's own options. Setting LINTSYNC_CONFIG lets every later call to loadMainConfig() see
 // it transparently; --config is still declared on `program` below purely so it shows in --help.
-// A user who places it after a subcommand name (`lintsync sync --config x`) gets commander's own
-// "unknown option" error instead, same as any other global CLI flag placed in the wrong spot.
+// The scan below checks the whole argv array, so --config works in any position, before or
+// after the subcommand name.
 const configFlagIndex = process.argv.indexOf('--config')
 if (configFlagIndex !== -1 && process.argv[configFlagIndex + 1]) {
   process.env.LINTSYNC_CONFIG = process.argv[configFlagIndex + 1]
@@ -130,7 +130,7 @@ const program = new Command()
 
 program.option(
   '--config <path>',
-  'path to the main lintsync config file (env: LINTSYNC_CONFIG; default: OS standard config dir); must come before the subcommand name',
+  'path to the main lintsync config file (env: LINTSYNC_CONFIG; default: OS standard config dir); works in any position',
 )
 
 program
@@ -263,7 +263,7 @@ program
               ? JSON.stringify({
                   error: '--preset is required (no interactive terminal available)',
                 })
-              : 'Ошибка: --preset is required (no interactive terminal available)',
+              : 'Error: --preset is required (no interactive terminal available)',
           )
           process.exitCode = 2
           return
@@ -285,7 +285,7 @@ program
             console.log(
               options.json
                 ? JSON.stringify({ error: saveResult.error })
-                : `Ошибка: ${saveResult.error}`,
+                : `Error: ${saveResult.error}`,
             )
             process.exitCode = 2
             return
@@ -340,7 +340,7 @@ program
       path = parsePathExpression(pathArg)
     } catch (cause) {
       const message = cause instanceof PathParseError ? cause.message : String(cause)
-      console.log(options.json ? JSON.stringify({ error: message }) : `Ошибка: ${message}`)
+      console.log(options.json ? JSON.stringify({ error: message }) : `Error: ${message}`)
       process.exitCode = 2
       return
     }
@@ -378,7 +378,7 @@ program
         path = parsePathExpression(pathArg)
       } catch (cause) {
         const message = cause instanceof PathParseError ? cause.message : String(cause)
-        console.log(options.json ? JSON.stringify({ error: message }) : `Ошибка: ${message}`)
+        console.log(options.json ? JSON.stringify({ error: message }) : `Error: ${message}`)
         process.exitCode = 2
         return
       }
@@ -414,7 +414,7 @@ program
       path = parsePathExpression(pathArg)
     } catch (cause) {
       const message = cause instanceof PathParseError ? cause.message : String(cause)
-      console.log(options.json ? JSON.stringify({ error: message }) : `Ошибка: ${message}`)
+      console.log(options.json ? JSON.stringify({ error: message }) : `Error: ${message}`)
       process.exitCode = 2
       return
     }
@@ -522,9 +522,9 @@ projects
       if (options.json) {
         console.log(JSON.stringify(result))
       } else if (result.error) {
-        console.log(`Ошибка: ${result.error}`)
+        console.log(`Error: ${result.error}`)
       } else {
-        console.log(`✓ добавлено: ${name} → ${path}`)
+        console.log(`✓ added: ${name} → ${path}`)
       }
 
       process.exitCode = result.exitCode
@@ -544,9 +544,9 @@ projects
     if (options.json) {
       console.log(JSON.stringify(result))
     } else if (result.error) {
-      console.log(`Ошибка: ${result.error}`)
+      console.log(`Error: ${result.error}`)
     } else {
-      console.log(`✓ удалено: ${name}`)
+      console.log(`✓ removed: ${name}`)
     }
 
     process.exitCode = result.exitCode
@@ -609,9 +609,9 @@ presets
     if (options.json) {
       console.log(JSON.stringify(result))
     } else if (result.error) {
-      console.log(`Ошибка: ${result.error}`)
+      console.log(`Error: ${result.error}`)
     } else {
-      console.log(`✓ удалено: ${name}`)
+      console.log(`✓ removed: ${name}`)
     }
 
     process.exitCode = result.exitCode
