@@ -9,9 +9,9 @@ export interface ConflictResolverProps {
 }
 
 const OPTIONS: ReadonlyArray<{ choice: ResolutionChoice; label: string }> = [
-  { choice: 'accept-preset', label: 'Принять эталон' },
-  { choice: 'keep-local', label: 'Оставить локальное' },
-  { choice: 'manual', label: 'Отредактировать вручную' },
+  { choice: 'accept-preset', label: 'Accept preset' },
+  { choice: 'keep-local', label: 'Keep local' },
+  { choice: 'manual', label: 'Edit manually' },
 ]
 
 function formatValue(value: unknown): string {
@@ -152,11 +152,11 @@ export function ConflictResolver({ conflicts, onComplete }: ConflictResolverProp
   return (
     <Box flexDirection="column">
       <Text>
-        Конфликт {pageIndex + 1}/{conflicts.length}: {formatPathExpression(conflict.path)}
+        Conflict {pageIndex + 1}/{conflicts.length}: {formatPathExpression(conflict.path)}
       </Text>
-      <Text> Локально: {formatValue(conflict.fileValue)}</Text>
-      <Text> Манифест (было): {formatValue(conflict.manifestValue)}</Text>
-      <Text> Эталон (стало): {formatValue(conflict.presetValue)}</Text>
+      <Text> Local: {formatValue(conflict.fileValue)}</Text>
+      <Text> Manifest (was): {formatValue(conflict.manifestValue)}</Text>
+      <Text> Preset (would be): {formatValue(conflict.presetValue)}</Text>
       <Box flexDirection="column" marginTop={1}>
         {OPTIONS.map((option, index) => (
           <Text key={option.choice} {...(index === cursor ? { color: 'cyan' } : {})}>
@@ -167,9 +167,9 @@ export function ConflictResolver({ conflicts, onComplete }: ConflictResolverProp
         ))}
       </Box>
       {manualMode ? (
-        <Text>Ввод: {manualInput}</Text>
+        <Text>Input: {manualInput}</Text>
       ) : (
-        <Text dimColor>Предпросмотр: {formatValue(previewValue)}</Text>
+        <Text dimColor>Preview: {formatValue(previewValue)}</Text>
       )}
     </Box>
   )

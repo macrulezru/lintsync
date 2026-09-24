@@ -52,10 +52,10 @@ describe('renderHumanBatchReport (default verbosity)', () => {
     }
     const text = renderHumanBatchReport(batch, 'default')
     expect(text).toContain('=== clean-project ===')
-    expect(text).toContain('✓ актуален')
+    expect(text).toContain('✓ up to date')
     expect(text).toContain('=== conflict-project ===')
-    expect(text).toContain('✗ 1 конфликт')
-    expect(text).toContain('Всего проектов: 2. Итоговый код возврата: 3')
+    expect(text).toContain('✗ 1 conflict')
+    expect(text).toContain('Total projects: 2. Overall exit code: 3')
   })
 })
 
@@ -74,7 +74,7 @@ describe('renderHumanBatchReport (quiet verbosity)', () => {
     expect(text).not.toContain('clean-project:')
     expect(text).toContain('conflict-project: eslint: rules.no-console')
     // exactly one exit-code line: the batch aggregate, not a duplicated per-project one
-    expect(text.match(/Код возврата:/g)).toHaveLength(1)
-    expect(text).toContain('Код возврата: 1')
+    expect(text.match(/Exit code:/g)).toHaveLength(1)
+    expect(text).toContain('Exit code: 1')
   })
 })

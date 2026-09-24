@@ -81,30 +81,30 @@ describe('renderHumanReport (default verbosity)', () => {
   it('shows a clean tool as up to date', () => {
     const text = renderHumanReport(cleanReport, 'default')
     expect(text).toContain('prettier (.prettierrc.json)')
-    expect(text).toContain('✓ актуален')
-    expect(text).toContain('Код возврата: 0')
+    expect(text).toContain('✓ up to date')
+    expect(text).toContain('Exit code: 0')
   })
 
   it('shows a would-update tool with the change summary', () => {
     const text = renderHumanReport(wouldUpdateReport, 'default')
-    expect(text).toContain('↻ 1 ключ будет обновлено')
+    expect(text).toContain('↻ 1 key would be updated')
     expect(text).toContain('rules.no-console: "off" → "warn"')
   })
 
   it('shows a conflict with local/preset values, path rendered via formatPathExpression', () => {
     const text = renderHumanReport(conflictReport, 'default')
-    expect(text).toContain('✗ 1 конфликт:')
+    expect(text).toContain('✗ 1 conflict:')
     // no literal '.' in the segment, so formatPathExpression uses the bare dot form, not brackets
     expect(text).toContain('rules.vue/multi-word-component-names')
-    expect(text).toContain('локально: "warn"')
-    expect(text).toContain('эталон: "off"')
-    expect(text).toContain('Код возврата: 1')
+    expect(text).toContain('local: "warn"')
+    expect(text).toContain('preset: "off"')
+    expect(text).toContain('Exit code: 1')
   })
 
   it('shows a per-tool error', () => {
     const text = renderHumanReport(errorReport, 'default')
-    expect(text).toContain('✗ ошибка: Config file not found: .stylelintrc.json')
-    expect(text).toContain('Код возврата: 2')
+    expect(text).toContain('✗ error: Config file not found: .stylelintrc.json')
+    expect(text).toContain('Exit code: 2')
   })
 })
 
@@ -119,14 +119,14 @@ describe('renderHumanReport (quiet verbosity)', () => {
 
   it('prints only the conflicting path and the exit code on conflict', () => {
     const text = renderHumanReport(conflictReport, 'quiet')
-    expect(text).toBe('eslint: rules.vue/multi-word-component-names\nКод возврата: 1')
+    expect(text).toBe('eslint: rules.vue/multi-word-component-names\nExit code: 1')
   })
 })
 
 describe('renderHumanReport (verbose verbosity)', () => {
   it('also prints the manifest value for a conflict', () => {
     const text = renderHumanReport(conflictReport, 'verbose')
-    expect(text).toContain('манифест: "off"')
+    expect(text).toContain('manifest: "off"')
   })
 })
 
@@ -139,7 +139,7 @@ describe('renderHumanReport (whole-project error)', () => {
       error: 'No manifest found at .lintsync/manifest.json. Run `lintsync init` first.',
     }
     expect(renderHumanReport(report, 'quiet')).toBe(
-      'Ошибка: No manifest found at .lintsync/manifest.json. Run `lintsync init` first.',
+      'Error: No manifest found at .lintsync/manifest.json. Run `lintsync init` first.',
     )
   })
 })

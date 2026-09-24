@@ -9,14 +9,14 @@ const formatValue = (value: unknown): string =>
  *  suppresses the trailing status line on error, matching set/unset's convention. */
 export function renderGetResult(result: GetOutcome, verbosity: Verbosity): string {
   if (!result.found) {
-    return verbosity === 'quiet' ? `Код возврата: ${result.exitCode}` : `Ошибка: ${result.error}`
+    return verbosity === 'quiet' ? `Exit code: ${result.exitCode}` : `Error: ${result.error}`
   }
   return formatValue(result.value)
 }
 
 export function renderSetResult(result: SetOutcome, verbosity: Verbosity): string {
   if (!result.applied) {
-    return verbosity === 'quiet' ? `Код возврата: ${result.exitCode}` : `Ошибка: ${result.error}`
+    return verbosity === 'quiet' ? `Exit code: ${result.exitCode}` : `Error: ${result.error}`
   }
   if (verbosity === 'quiet') {
     return ''
@@ -26,10 +26,10 @@ export function renderSetResult(result: SetOutcome, verbosity: Verbosity): strin
 
 export function renderUnsetResult(result: UnsetOutcome, verbosity: Verbosity): string {
   if (!result.applied) {
-    return verbosity === 'quiet' ? `Код возврата: ${result.exitCode}` : `Ошибка: ${result.error}`
+    return verbosity === 'quiet' ? `Exit code: ${result.exitCode}` : `Error: ${result.error}`
   }
   if (verbosity === 'quiet') {
     return ''
   }
-  return `✓ удалено: ${formatPathExpression(result.path)}`
+  return `✓ removed: ${formatPathExpression(result.path)}`
 }

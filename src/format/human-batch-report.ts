@@ -18,16 +18,16 @@ export function renderHumanBatchReport(
       if (project.exitCode === 0) {
         continue
       }
-      // Skip renderHumanReport's own trailing "Код возврата: N" line here — that's this
+      // Skip renderHumanReport's own trailing "Exit code: N" line here — that's this
       // project's individual code, not the batch's aggregate one appended below, and showing
       // both would be confusing.
       const text = renderHumanReport(project, 'quiet')
-      const detailLines = text.split('\n').filter((line) => !line.startsWith('Код возврата:'))
+      const detailLines = text.split('\n').filter((line) => !line.startsWith('Exit code:'))
       for (const line of detailLines) {
         lines.push(`${project.project}: ${line}`)
       }
     }
-    lines.push(`Код возврата: ${batch.exitCode}`)
+    lines.push(`Exit code: ${batch.exitCode}`)
     return lines.join('\n')
   }
 
@@ -40,7 +40,7 @@ export function renderHumanBatchReport(
     }
     lines.push('')
   }
-  lines.push(`Всего проектов: ${batch.projects.length}. Итоговый код возврата: ${batch.exitCode}`)
+  lines.push(`Total projects: ${batch.projects.length}. Overall exit code: ${batch.exitCode}`)
 
   return lines.join('\n').trimEnd()
 }

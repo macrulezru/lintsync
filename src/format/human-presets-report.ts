@@ -2,7 +2,7 @@ import type { Preset } from '../presets/types.js'
 
 export function renderPresetsList(presets: Preset[]): string {
   if (presets.length === 0) {
-    return 'Нет локально сохранённых пресетов.'
+    return 'No locally-saved presets.'
   }
   return presets
     .map(

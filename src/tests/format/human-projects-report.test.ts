@@ -3,7 +3,7 @@ import { renderProjectsList } from '../../format/human-projects-report.js'
 
 describe('renderProjectsList', () => {
   it('shows a message when there are no registered projects', () => {
-    expect(renderProjectsList([])).toBe('Нет зарегистрированных проектов.')
+    expect(renderProjectsList([])).toBe('No registered projects.')
   })
 
   it('lists name, path and tags', () => {
